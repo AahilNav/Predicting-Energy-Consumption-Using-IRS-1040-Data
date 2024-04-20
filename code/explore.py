@@ -1,6 +1,7 @@
 import csv
 import os
 
+#Before running this code unzip all the files in data and put them in a folder named '09-21csv'
 folder_path = os.path.join(os.getcwd(), 'data', '09-21csv')
 out_path = os.path.join(os.getcwd(), 'artifacts')
 
