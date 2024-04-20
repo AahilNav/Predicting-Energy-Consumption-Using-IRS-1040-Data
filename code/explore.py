@@ -76,5 +76,5 @@ if __name__ == "__main__":
     write_vardoc(data_dict)
 
     # Filter files for years '13' to '21' and call the function again
-    filtered_data_dict = {k: v for k, v in data_dict.items() if k[:2] in ['13', '14', '15', '16', '17', '18', '19', '20', '21']}
-    write_vardoc(filtered_data_dict, '_13-21')
+    filtered_data_dict = {k: v for k, v in data_dict.items() if k[:2] in ['12', '13']}
+    write_vardoc(filtered_data_dict, '_12-13')
