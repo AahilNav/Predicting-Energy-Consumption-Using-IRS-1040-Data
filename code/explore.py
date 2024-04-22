@@ -3,7 +3,7 @@ import os
 
 #Before running this code unzip all the files in data and put them in a folder named '09-21csv'
 folder_path = os.path.join(os.getcwd(), 'data', '09-21csv')
-out_path = os.path.join(os.getcwd(), 'artifacts')
+out_path = os.path.join(os.getcwd(), 'artifacts','explore_output')
 
 def capitalize_column_headers(headers):
     capitalized_headers = [str(header).upper() for header in headers]
@@ -76,5 +76,5 @@ if __name__ == "__main__":
     write_vardoc(data_dict)
 
     # Filter files for years '13' to '21' and call the function again
-    filtered_data_dict = {k: v for k, v in data_dict.items() if k[:2] in ['12', '13']}
-    write_vardoc(filtered_data_dict, '_12-13')
+    filtered_data_dict = {k: v for k, v in data_dict.items() if k[:2] in ['09','10','11','12','13','14','15','16','17','18','19','20','21']}
+    write_vardoc(filtered_data_dict, '_09-21')
