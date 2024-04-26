@@ -1,0 +1,92 @@
+---
+title: "Project Analysis Exploratory"
+author: "Aahil Navroz, Joseph Williams, Qi Suqian"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# ECO 395M: Exploratory Analysis: Who is claiming energy tax credits
+
+Aahil Navroz, Joseph Williams, Qi Suqian
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+#Joe Code
+
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(readxl)
+
+chicago = read.csv("../working_data/updated_energy_usage.csv")
+
+#select aahil data and check up
+# chicago_filtered = chicago %>% select(COMMUNITY.AREA.NAME, zip, BUILDING.TYPE, BUILDING_SUBTYPE, TOTAL.POPULATION, OCCUPIED.UNITS, RENTER.OCCUPIED.HOUSING.UNITS, TOTAL.KWH, KWH.MEAN.2010, THERM.MEAN.2010, THERMS.TOTAL.SQFT,THERMS.SQFT.MEAN.2010, AVERAGE.BUILDING.AGE, AVERAGE.HOUSESIZE)
+
+# varnames
+varnames = read_excel("../artifacts/Codebook.xlsx","SelectedVars") %>% select(Variable, Description, Shared)
+
+
+#list of unique Chicago area codes for summary... why go nationwide?
+chicago_zips = chicago %>%
+  filter(!is.na(zip))
+chicago_ziplist = unique(chicago_zips$zip)
+
+
+##IRS data wrangling
+#filter to only contain observations with Chicago zipcodes
+irs09 = read.csv("../working_data/09zpallagi_stdz.csv")
+irs09c <- irs09 %>% 
+  filter(ZIPCODE %in% chicago_ziplist)
+
+# Group by ZIPCODE and summarize numeric columns excluding YEAR and AGI_STUB
+irs_counts <- irs09 %>%
+ select(-c(STATEFIPS, AGI_STUB)) %>%
+  group_by(STATE, YEAR, ZIPCODE) %>%
+  summarize(across(where(is.numeric), sum, na.rm = TRUE))
+
+irs09c_counts <- irs09c %>%
+ select(-c(N10960, A10960, N11520, A11520, STATEFIPS, AGI_STUB)) %>%
+  group_by(STATE, YEAR, ZIPCODE) %>%
+  summarize(across(where(is.numeric), sum, na.rm = TRUE))
+
+# Extract column names from irs_counts and varnames
+irs_counts_cols <- colnames(irs_counts)
+varnames_vars <- varnames$Variable
+
+# Find variables in Varnames missing from counts
+not_in_counts <- setdiff(varnames_vars, irs_counts_cols)
+
+# Print variables in Varnames missing from counts
+#print(not_in_counts)
+
+#order intuitively
+irs09_varcounts = irs_counts[, -c(1,2,3,5,6,7)]
+irs09_varcounts <- irs09_varcounts %>%
+  mutate(across(-N1, ~ ./N1, .names = "{.col}_av"))
+var_columns <- grep("_av$", colnames(irs09_varcounts), value = TRUE)
+var_columns <- sub("_av$", "", var_columns)
+column_pairs <- c(rbind(var_columns, paste0(var_columns, "_av")))
+irs09_varcounts <- irs09_varcounts %>%
+  select(N1, column_pairs, everything())
+
+irs09c_varcounts = irs09c_counts[, -c(1,2,3,5,6,7)]
+irs09c_varcounts <- irs09c_varcounts %>%
+  mutate(across(-N1, ~ ./N1, .names = "{.col}_av"))
+var_columns <- grep("_av$", colnames(irs09c_varcounts), value = TRUE)
+var_columns <- sub("_av$", "", var_columns)
+column_pairs <- c(rbind(var_columns, paste0(var_columns, "_av")))
+irs09c_varcounts <- irs09c_varcounts %>%
+  select(N1, column_pairs, everything())
+
+#adding back relevant columns
+irs09_us <- cbind(irs_counts[, 1:7], irs09_varcounts[, -1])
+irs09chi <- cbind(irs09c_counts[, 1:7], irs09c_varcounts[, -1])
+
+write.csv(irs09_us, "../working_data/irs09_us.csv", row.names = FALSE)
+
+
+
+##Chicago data wrangling
+
+
+```
