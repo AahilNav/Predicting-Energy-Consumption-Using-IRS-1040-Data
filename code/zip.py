@@ -1,8 +1,8 @@
 import pandas as pd
 
 # Define file paths
-energy_usage_path = 'Energy_Usage_2010_20240424.csv'
-zip_tract_path = 'ZIP_TRACT_122018.csv'
+energy_usage_path = '../working_data/ss/Energy_Usage_2010_20240424.csv'
+zip_tract_path = '../working_data/prework/ZIP_TRACT_122018.csv'
 
 # Load the energy usage data from CSV
 energy_usage = pd.read_csv(energy_usage_path)
