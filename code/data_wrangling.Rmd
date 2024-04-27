@@ -1,0 +1,127 @@
+---
+title: "Project Analysis Exploratory"
+author: "Aahil Navroz, Joseph Williams, Qi Suqian"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+### Data Wrangling: aggregating, combining Chicago energy with IRS
+
+Aahil Navroz, Joseph Williams, Qi Suqian
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+#Joe Code
+
+library(tidyverse)
+library(ggplot2)
+library(maps)
+library(readxl)
+
+options(scipen = 16)
+
+#unzip below folder first
+chicago = read.csv("../working_data/prework/final_updated_energy_usage_with_coordinates.csv")
+
+# varnames
+varnames = read_excel("../artifacts/Codebook.xlsx","SelectedVars") %>% select(Variable, Description, Shared)
+
+##################################################################################################################
+##Chicago data wrangling
+
+##Chicago ZIP Totals
+chicago_singlefam = chicago %>% mutate(YEAR=2010) %>% select(YEAR, everything()) %>%
+  filter(BUILDING.TYPE == "Residential") %>%
+  group_by(YEAR, zip, BUILDING_SUBTYPE, Latitude, Longitude) %>%
+  summarize(
+    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, THERMS.SQFT.STANDARD.DEVIATION.2010, THERMS.TOTAL.SQFT, THERMS.SQFT.MEAN.2010,KWH.JANUARY.2010, KWH.FEBRUARY.2010, KWH.NOVEMBER.2010, KWH.DECEMBER.2010, TOTAL.KWH, KWH.TOTAL.SQFT, KWH.MEAN.2010, KWH.SQFT.STANDARD.DEVIATION.2010, TOTAL.POPULATION, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
+    across(
+      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE),mean,na.rm = TRUE)
+  ) %>% filter(BUILDING_SUBTYPE == "Single Family")
+
+chicago_all = chicago %>% mutate(YEAR=2010) %>% select(YEAR, everything()) %>%
+  filter(BUILDING.TYPE == "Residential") %>%
+  group_by(YEAR, zip, Latitude, Longitude) %>%
+  summarize(
+    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, THERMS.SQFT.STANDARD.DEVIATION.2010, THERMS.TOTAL.SQFT, THERMS.SQFT.MEAN.2010,KWH.JANUARY.2010, KWH.FEBRUARY.2010, KWH.NOVEMBER.2010, KWH.DECEMBER.2010, TOTAL.KWH, KWH.TOTAL.SQFT, KWH.MEAN.2010, KWH.SQFT.STANDARD.DEVIATION.2010, TOTAL.POPULATION, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
+    across(
+      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE),mean,na.rm = TRUE)
+  ) %>% mutate(BUILDING_SUBTYPE = "All") %>% select(zip, BUILDING_SUBTYPE, everything())
+
+
+##Optional data wrangling:
+#maybe weight each row by proportion of units in zip that are owned.  Can get this by (housing.units.occupied-housing.units.rented)/housing.units.occupied
+
+##################################################################################################################
+##IRS data wrangling
+  
+#list of unique Chicago area codes for summary.
+chicago_zips = chicago %>%
+  filter(!is.na(zip))
+chicago_ziplist = unique(chicago_zips$zip)
+
+chicago_badzips = chicago %>% filter(zip %in% c(60018, 60601, 60602, 60654, 60803))
+#Looks like these zip codes only really have commercial data
+
+#filter to only contain observations with Chicago zipcodes
+irs09 = read.csv("../working_data/prework/09zpallagi_stdz.csv")
+irs09c <- irs09 %>% 
+  filter(ZIPCODE %in% chicago_ziplist)
+
+##Group by ZIPCODE and summarize numeric columns
+
+# irs_counts <- irs09 %>%
+#  select(-c(STATEFIPS, AGI_STUB)) %>%
+#   group_by(STATE, YEAR, ZIPCODE) %>%
+#   summarize(across(where(is.numeric), sum, na.rm = TRUE))
+
+irs09c_counts <- irs09c %>%
+ select(-c(YEAR, N10960, A10960, N11520, A11520, STATEFIPS, AGI_STUB)) %>%
+  group_by(STATE, ZIPCODE) %>%
+  summarize(across(where(is.numeric), sum, na.rm = TRUE))
+
+##Calculate averages and order intuitiveley
+
+# irs09_varcounts = irs_counts[, -c(1,2,3,5,6,7)]
+# irs09_varcounts <- irs09_varcounts %>%
+#   mutate(across(-N1, ~ ./N1, .names = "{.col}_av"))
+# var_columns <- grep("_av$", colnames(irs09_varcounts), value = TRUE)
+# var_columns <- sub("_av$", "", var_columns)
+# column_pairs <- c(rbind(var_columns, paste0(var_columns, "_av")))
+# irs09_varcounts <- irs09_varcounts %>%
+#   select(N1, column_pairs, everything())
+
+irs09c_varcounts = irs09c_counts[, -c(1,2,4,5,6)]
+irs09c_varcounts <- irs09c_varcounts %>%
+  mutate(across(-N1, ~ ./N1, .names = "{.col}_av"))
+var_columns <- grep("_av$", colnames(irs09c_varcounts), value = TRUE)
+var_columns <- sub("_av$", "", var_columns)
+column_pairs <- c(rbind(var_columns, paste0(var_columns, "_av")))
+irs09c_varcounts <- irs09c_varcounts %>%
+  select(N1, column_pairs, everything())
+
+##Recreate df
+#irs09_us <- cbind(irs_counts[, 1:7], irs09_varcounts[, -1])
+irs09chi <- cbind(irs09c_counts[, 1:7], irs09c_varcounts[, -1])
+irs09chi = irs09chi %>% mutate(RETURN_YEAR = 2009) %>% select(STATE, RETURN_YEAR, everything())
+colnames(irs09chi)
+
+#Output 09 data
+#write.csv(irs09_us, "../working_data/irs09_us.csv", row.names = FALSE)
+
+
+##################################################################################################################
+##Combining chicago and IRS
+
+chi_singlefam = merge(chicago_singlefam, irs09chi, by.x="zip", by.y="ZIPCODE",all=TRUE)
+chi_all = merge(chicago_all, irs09chi, by.x="zip", by.y="ZIPCODE",all=TRUE)
+
+##Ouptut to working data
+write.csv(chi_singlefam, "../working_data/chi_singlefam.csv", row.names = FALSE)
+write.csv(chi_all, "../working_data/chi_all.csv", row.names = FALSE)
+
+
+```
+
+
+
+
