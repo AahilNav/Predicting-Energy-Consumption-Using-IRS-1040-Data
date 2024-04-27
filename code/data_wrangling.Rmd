@@ -101,7 +101,7 @@ irs09c_varcounts <- irs09c_varcounts %>%
 
 ##Recreate df
 #irs09_us <- cbind(irs_counts[, 1:7], irs09_varcounts[, -1])
-irs09chi <- cbind(irs09c_counts[, 1:7], irs09c_varcounts[, -1])
+irs09chi <- cbind(irs09c_counts[, 1:6], irs09c_varcounts[, -1])
 irs09chi = irs09chi %>% mutate(RETURN_YEAR = 2009) %>% select(STATE, RETURN_YEAR, everything())
 colnames(irs09chi)
 
