@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Load the unique ZIP codes with manually entered lat-long
-zip_codes = pd.read_csv('unique_zip_codes.csv')
+zip_codes = pd.read_csv('../working_data/ss/unique_zip_codes.csv')
 zip_codes['zip'] = zip_codes['zip'].astype(int).astype(str)  # Ensure zip codes are strings and formatted correctly
 
 # Split the 'latlong' into two separate columns for 'Latitude' and 'Longitude'
