@@ -111,13 +111,22 @@ colnames(irs09chi)
 
 ##################################################################################################################
 ##Combining chicago and IRS
-
 chi_singlefam = merge(chicago_singlefam, irs09chi, by.x="zip", by.y="ZIPCODE",all=TRUE)
 chi_all = merge(chicago_all, irs09chi, by.x="zip", by.y="ZIPCODE",all=TRUE)
 
+chicago_all = rbind(chi_singlefam, chi_all)
+chicago_all = chicago_all[order(chicago_all$zip), ]
+
+#Add Therm.Winter variable
+chicago_all = chicago_all %>% mutate(THERM.WINTER = THERM.JANUARY.2010+THERM.FEBRUARY.2010+THERM.NOVEMBER.2010+THERM.DECEMBER.2010) %>% select(zip, YEAR, BUILDING_SUBTYPE, Latitude, Longitude, THERM.WINTER, everything())
+
+#Remove zero and NA
+chicago_all = chicago_all %>% filter(!is.na(OCCUPIED.HOUSING.UNITS), OCCUPIED.HOUSING.UNITS > 0)
+
+
 ##Ouptut to working data
-write.csv(chi_singlefam, "../working_data/chi_singlefam.csv", row.names = FALSE)
-write.csv(chi_all, "../working_data/chi_all.csv", row.names = FALSE)
+#write.csv(chi_singlefam, "../working_data/chi_singlefam.csv", row.names = FALSE)
+write.csv(chicago_all, "../working_data/chicago_all.csv", row.names = FALSE)
 
 
 ```
