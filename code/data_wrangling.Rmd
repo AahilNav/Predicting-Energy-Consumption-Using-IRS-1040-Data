@@ -34,18 +34,18 @@ chicago_singlefam = chicago %>% mutate(YEAR=2010) %>% select(YEAR, everything())
   filter(BUILDING.TYPE == "Residential") %>%
   group_by(YEAR, zip, BUILDING_SUBTYPE, Latitude, Longitude) %>%
   summarize(
-    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, THERMS.SQFT.STANDARD.DEVIATION.2010, THERMS.TOTAL.SQFT, THERMS.SQFT.MEAN.2010,KWH.JANUARY.2010, KWH.FEBRUARY.2010, KWH.NOVEMBER.2010, KWH.DECEMBER.2010, TOTAL.KWH, KWH.TOTAL.SQFT, KWH.MEAN.2010, KWH.SQFT.STANDARD.DEVIATION.2010, TOTAL.POPULATION, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
+    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, TOTAL.KWH, KWH.TOTAL.SQFT, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
     across(
-      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE),mean,na.rm = TRUE)
-  ) %>% filter(BUILDING_SUBTYPE == "Single Family")
+      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE, AVERAGE.HOUSESIZE),mean,na.rm = TRUE)) %>%
+  filter(BUILDING_SUBTYPE == "Single Family")
 
 chicago_all = chicago %>% mutate(YEAR=2010) %>% select(YEAR, everything()) %>%
   filter(BUILDING.TYPE == "Residential") %>%
   group_by(YEAR, zip, Latitude, Longitude) %>%
   summarize(
-    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, THERMS.SQFT.STANDARD.DEVIATION.2010, THERMS.TOTAL.SQFT, THERMS.SQFT.MEAN.2010,KWH.JANUARY.2010, KWH.FEBRUARY.2010, KWH.NOVEMBER.2010, KWH.DECEMBER.2010, TOTAL.KWH, KWH.TOTAL.SQFT, KWH.MEAN.2010, KWH.SQFT.STANDARD.DEVIATION.2010, TOTAL.POPULATION, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
+    across(c(THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS,THERMS.TOTAL.SQFT, TOTAL.KWH, KWH.TOTAL.SQFT, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS), sum, na.rm = TRUE),
     across(
-      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE),mean,na.rm = TRUE)
+      c(AVERAGE.STORIES, AVERAGE.BUILDING.AGE, AVERAGE.HOUSESIZE),mean,na.rm = TRUE)
   ) %>% mutate(BUILDING_SUBTYPE = "All") %>% select(zip, BUILDING_SUBTYPE, everything())
 
 
@@ -119,14 +119,27 @@ chicago_all = rbind(chi_singlefam, chi_all)
 chicago_all = chicago_all[order(chicago_all$zip), ]
 
 #Add Therm.Winter variable
-chicago_all = chicago_all %>% mutate(THERM.WINTER = THERM.JANUARY.2010+THERM.FEBRUARY.2010+THERM.NOVEMBER.2010+THERM.DECEMBER.2010) %>% select(zip, YEAR, BUILDING_SUBTYPE, Latitude, Longitude, THERM.WINTER, everything())
+chicago_all = chicago_all %>% mutate(THERM.WINTER = THERM.JANUARY.2010+THERM.FEBRUARY.2010+THERM.NOVEMBER.2010+THERM.DECEMBER.2010)
+
+#Add owned perc
+chicago_all = chicago_all %>% mutate(RATIO.OWNED = (OCCUPIED.HOUSING.UNITS-RENTER.OCCUPIED.HOUSING.UNITS)/TOTAL.UNITS)
+
+#Add Therm.Total/SQFT and KHW.Total/SQFT variable
+chicago_all = chicago_all %>% mutate(THERMS.PER.SQFT = TOTAL.THERMS/THERMS.TOTAL.SQFT)
+chicago_all = chicago_all %>% mutate(KWH.PER.SQFT = TOTAL.KWH/KWH.TOTAL.SQFT)
+
+#organize as desired
+chicago_all = chicago_all %>% select(zip, YEAR, BUILDING_SUBTYPE, Latitude, Longitude, THERMS.PER.SQFT, KWH.PER.SQFT, THERM.WINTER, THERM.JANUARY.2010, THERM.FEBRUARY.2010, THERM.NOVEMBER.2010, THERM.DECEMBER.2010, TOTAL.THERMS, THERMS.TOTAL.SQFT, TOTAL.KWH, KWH.TOTAL.SQFT, TOTAL.UNITS, OCCUPIED.HOUSING.UNITS, RENTER.OCCUPIED.HOUSING.UNITS, RATIO.OWNED,everything())
+
+
+#Add ..owned KHW, THERMS variable
 
 #Remove zero and NA
 chicago_all = chicago_all %>% filter(!is.na(OCCUPIED.HOUSING.UNITS), OCCUPIED.HOUSING.UNITS > 0)
 
 
 ################################################################################################################
-Creating Codebook
+#Creating Codebook
 ##Ouptut to working data
 #write.csv(chi_singlefam, "../working_data/chi_singlefam.csv", row.names = FALSE)
 write.csv(chicago_all, "../working_data/chicago_all.csv", row.names = FALSE)
