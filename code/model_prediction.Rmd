@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-### Data Wrangling: aggregating, combining Chicago energy with IRS
+### Modeling
 
 Aahil Navroz, Joseph Williams, Qi Suqian
 
@@ -23,20 +23,26 @@ library(pdp)
 
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 # read the dataset
-chi_all = read.csv("../working_data/chi_all.csv")
-chi_singlefam = read.csv("../working_data/chi_singlefam.csv")
+chicago_all = read.csv("../working_data/chicago_all.csv")
+chi_all = chicago_all %>% filter(BUILDING_SUBTYPE=="All")
+chi_singlefam= chicago_all %>% filter(BUILDING_SUBTYPE=="Single Family")
 
-# delet the missing value rows and abnormal rows
+# delete the missing value rows and abnormal rows
 cleaned_all = na.omit(chi_all)
 cleaned_all = cleaned_all[!cleaned_all$TOTAL.POPULATION==0,]
 cleaned_fam = na.omit(chi_singlefam)
 cleaned_fam = cleaned_all[!cleaned_fam$TOTAL.POPULATION==0,]
 
 # choose the selected columns
-cleaned_all = cleaned_all[,-c(1,2,3,6,7,8,9,10,11,12,14,15,16,17,18,19,21,28,29)]
-cleaned_fam = cleaned_fam[,-c(1,2,3,6,7,8,9,10,11,12,14,15,16,17,18,19,21,28,29)]
+#Qi can you recheck and make sure its right? I believe it is: I'm only added a WINTER column so all shifted by one
+#Lets also eliminate a lot more of these variables for collinearity
+#Lets go over variables again, and make sure I aggregated correctly.  Something is off.
+cleaned_all = cleaned_all[,-c(1,2,3,6,7,8,9,10,11,12,13,15,16,17,18,19,20,22,29,30)]
+cleaned_fam = cleaned_fam[,-c(1,2,3,6,7,8,9,10,11,12,13,15,16,17,18,19,20,22,29,30)]
+
 
 # seperate two target variables: THERMS.SQFT.MEAN.2010 and KWH.MEAN.2010
+# NOTE: THERMS.SQFT. is not therm heating/squarefootage.  We should honestly do WINTER/SQFT*(OCCUPIED HOUSING/HOUSING)
 therm_all = cleaned_all[,-4]
 kwh_all = cleaned_all[,-3]
 therm_fam = cleaned_fam[,-4]

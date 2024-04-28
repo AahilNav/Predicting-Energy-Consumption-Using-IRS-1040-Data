@@ -29,6 +29,7 @@ varnames = read_excel("../artifacts/Codebook.xlsx","SelectedVars") %>% select(Va
 ##Chicago data wrangling
 
 ##Chicago ZIP Totals
+##Review these variables!
 chicago_singlefam = chicago %>% mutate(YEAR=2010) %>% select(YEAR, everything()) %>%
   filter(BUILDING.TYPE == "Residential") %>%
   group_by(YEAR, zip, BUILDING_SUBTYPE, Latitude, Longitude) %>%
@@ -124,6 +125,8 @@ chicago_all = chicago_all %>% mutate(THERM.WINTER = THERM.JANUARY.2010+THERM.FEB
 chicago_all = chicago_all %>% filter(!is.na(OCCUPIED.HOUSING.UNITS), OCCUPIED.HOUSING.UNITS > 0)
 
 
+################################################################################################################
+Creating Codebook
 ##Ouptut to working data
 #write.csv(chi_singlefam, "../working_data/chi_singlefam.csv", row.names = FALSE)
 write.csv(chicago_all, "../working_data/chicago_all.csv", row.names = FALSE)

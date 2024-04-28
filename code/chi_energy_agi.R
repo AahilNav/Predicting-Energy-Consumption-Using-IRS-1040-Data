@@ -4,7 +4,8 @@ library(leaflet)
 library(scales)  # For formatting numbers in the popup
 
 # Read the data
-data <- read.csv("../working_data/chi_all.csv")
+data <- read.csv("../working_data/chicago_all.csv")
+data = data %>% filter(BUILDING_SUBTYPE == "All")
 
 # Ensure there are no NA values in key columns
 data = data %>%
