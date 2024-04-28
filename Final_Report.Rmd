@@ -1,0 +1,22 @@
+---
+title: "Can We Predict Residential Energy Usage with IRS Data?"
+subtitle: "A Study On 2010 Electric and Gas Usage Across Chicago Zip Codes"
+author: "Aahil Navroz, Joseph Williams, Qi Suqian"
+date: "April 2024"
+output: 
+  pdf_document:
+---
+
+
+## Abstract
+
+## Introduction
+
+## Methods
+Our dataset is 
+
+## Results
+
+## Conclusion
+
+## Appendix
