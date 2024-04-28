@@ -19,59 +19,60 @@ library(yardstick)
 library(Metrics)
 library(ggplot2)
 library(pdp)
+library(dplyr)
 ```
 
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 # read the dataset
 chicago_all = read.csv("../working_data/chicago_all.csv")
-chi_all = chicago_all %>% filter(BUILDING_SUBTYPE=="All")
-chi_singlefam= chicago_all %>% filter(BUILDING_SUBTYPE=="Single Family")
 
-# delete the missing value rows and abnormal rows
-cleaned_all = na.omit(chi_all)
-cleaned_all = cleaned_all[!cleaned_all$TOTAL.POPULATION==0,]
-cleaned_fam = na.omit(chi_singlefam)
-cleaned_fam = cleaned_all[!cleaned_fam$TOTAL.POPULATION==0,]
+#only keep zip averages from IRS data
+chicago_only = chicago_all[,1:29]
+chicago_irs = chicago_all[,-(1:29)]
+chicago_irs_filt = chicago_irs[, grepl("_av$", names(chicago_irs))]
+chicago_all_filt = cbind(chicago_only, chicago_irs_filt)
+
+#separate data by building subtype
+chi_all = chicago_all_filt %>% filter(BUILDING_SUBTYPE=="All")
+chi_singlefam= chicago_all_filt %>% filter(BUILDING_SUBTYPE=="Single Family")
 
 # choose the selected columns
-#Qi can you recheck and make sure its right? I believe it is: I'm only added a WINTER column so all shifted by one
-#Lets also eliminate a lot more of these variables for collinearity
-#Lets go over variables again, and make sure I aggregated correctly.  Something is off.
-cleaned_all = cleaned_all[,-c(1,2,3,6,7,8,9,10,11,12,13,15,16,17,18,19,20,22,29,30)]
-cleaned_fam = cleaned_fam[,-c(1,2,3,6,7,8,9,10,11,12,13,15,16,17,18,19,20,22,29,30)]
+cleaned_all = chi_all[,-c(1,2,3,8,9,10,11,12,13,14,15,16,17,19,24,25)]
+cleaned_fam = chi_singlefam[,-c(1,2,3,8,9,10,11,12,13,14,15,16,17,19,24,25)]
 
-
-# seperate two target variables: THERMS.SQFT.MEAN.2010 and KWH.MEAN.2010
-# NOTE: THERMS.SQFT. is not therm heating/squarefootage.  We should honestly do WINTER/SQFT*(OCCUPIED HOUSING/HOUSING)
+#separate two target variables: THERMS.PER.SQFT and KWH.PER.SQFT
 therm_all = cleaned_all[,-4]
 kwh_all = cleaned_all[,-3]
 therm_fam = cleaned_fam[,-4]
 kwh_fam = cleaned_fam[,-3]
 
-# split the dataset into train and test set
-train_index_therm_all = createDataPartition(therm_all$THERMS.SQFT.MEAN.2010, p = 0.8, list = FALSE)
-train_therm_all = therm_all[train_index_therm_all, ]
-test_therm_all = therm_all[-train_index_therm_all, ]
+
+##KWH
+train_index_kwh_all = createDataPartition(kwh_all$KWH.PER.SQFT, p = 0.8, list = FALSE)
+train_kwh_all = kwh_all[train_index_kwh_all, ]
+test_kwh_all = kwh_all[-train_index_kwh_all, ]
 ```
 
+
+Modeling Code for THERM_ALL
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
-## perfrom model fitting for therm_all
+##THERM MODELING_ALL
 # split the dataset into train and test set
-train_index_therm_all = createDataPartition(therm_all$THERMS.SQFT.MEAN.2010, p = 0.8, list = FALSE)
+train_index_therm_all = createDataPartition(therm_all$THERMS.PER.SQFT, p = 0.7, list = FALSE)
 train_therm_all = therm_all[train_index_therm_all, ]
 test_therm_all = therm_all[-train_index_therm_all, ]
 
 # Randomforest
-rf_therm_all= randomForest(THERMS.SQFT.MEAN.2010~ ., data = train_therm_all, ntree = 1000)
+rf_therm_all= randomForest(THERMS.PER.SQFT~ ., data = train_therm_all, ntree = 1000)
 
 # GBM
 trainControl_gbm_therm_all = trainControl(method = "cv",  
-                               number = 20)    
+                               number = 10)    
 gbm_grid = expand.grid(interaction.depth = 1:8,  
                           n.trees = 1000,          
                           shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
                         n.minobsinnode = c(4,6,8,10))
-gbm_therm_all_train = train(THERMS.SQFT.MEAN.2010 ~ ., data = train_therm_all,
+gbm_therm_all_train = train(THERMS.PER.SQFT ~ ., data = train_therm_all,
                     method = "gbm",
                     trControl = trainControl_gbm_therm_all,
                     tuneGrid = gbm_grid,
@@ -79,8 +80,9 @@ gbm_therm_all_train = train(THERMS.SQFT.MEAN.2010 ~ ., data = train_therm_all,
                     metric = "RMSE",  
                     distribution = "gaussian")
 print(gbm_therm_all_train)
-gbm_therm_all = gbm(THERMS.SQFT.MEAN.2010 ~ ., data = train_therm_all, distribution = "gaussian", 
-                n.trees=1000,interaction.depth = 6,shrinkage = 0.1,n.minobsinnode = 4)
+gbm_therm_all = gbm(THERMS.PER.SQFT ~ ., data = train_therm_all, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_therm_all_train$bestTune$interaction.depth,shrinkage = gbm_therm_all_train$bestTune$shrinkage,n.minobsinnode = gbm_therm_all_train$bestTune$n.minobsinnode)
+
 
 # XGboost
 xtherm_all = xgb.DMatrix(data=as.matrix(train_therm_all[,-3]),label=train_therm_all[,3])
@@ -124,7 +126,7 @@ for(i in 1:nrow(xgb_grid)) {
 #print the best params
 print(best_params_therm_all)
 
-xgb_therm_all = xgb.train(booster = "gbtree", max_depth = 10, subsample = 0.5, eta = 0.01, data = xtherm_all,
+xgb_therm_all = xgb.train(booster = "gbtree", max_depth = best_params_therm_all$max_depth, subsample = best_params_therm_all$subsample, eta = best_params_therm_all$eta, data = xtherm_all,
                        nrounds = 10000, watchlist = list(train = xtherm_all),
                        early_stopping_rounds = 10,verbose = 0)
 
@@ -133,38 +135,378 @@ ytherm_all = xgb.DMatrix(data=as.matrix(test_therm_all[,-3]),label=test_therm_al
 rf_predict_therm_all = predict(rf_therm_all,newdata=test_therm_all[,-3])
 gbm_predict_therm_all = predict(gbm_therm_all,newdata=test_therm_all[,-3])
 xgb_predict_therm_all = predict(xgb_therm_all,newdata=ytherm_all)
-therm_all_result = as.data.frame(cbind(test_therm_all$THERMS.SQFT.MEAN.2010,rf_predict_therm_all,gbm_predict_therm_all,xgb_predict_therm_all))
+therm_all_result = as.data.frame(cbind(test_therm_all$THERMS.PER.SQFT,rf_predict_therm_all,gbm_predict_therm_all,xgb_predict_therm_all))
 
-rf_rmse_therm_all = rmse(therm_all_result,V1,rf_predict_therm_all)
-gbm_rmse_therm_all = rmse(therm_all_result,V1,gbm_predict_therm_all)
-xgb_rmse_therm_all = rmse(therm_all_result,V1,xgb_predict_therm_all)
-
-rf_msle_therm_all = msle(test_therm_all$THERMS.SQFT.MEAN.2010,rf_predict_therm_all)
-gbm_msle_therm_all = msle(test_therm_all$THERMS.SQFT.MEAN.2010,gbm_predict_therm_all)
-xgb_msle_therm_all = msle(test_therm_all$THERMS.SQFT.MEAN.2010,xgb_predict_therm_all)
+rf_rmse_therm_all = yardstick::rmse(therm_all_result,V1,rf_predict_therm_all)
+gbm_rmse_therm_all = yardstick::rmse(therm_all_result,V1,gbm_predict_therm_all)
+xgb_rmse_therm_all = yardstick::rmse(therm_all_result,V1,xgb_predict_therm_all)
 
 rf_mpe_therm_all = mpe(therm_all_result,V1,rf_predict_therm_all)
 gbm_mpe_therm_all = mpe(therm_all_result,V1,gbm_predict_therm_all)
 xgb_mpe_therm_all = mpe(therm_all_result,V1,xgb_predict_therm_all)
 
 therm_all_rmse_value = c(rf_rmse_therm_all$.estimate,gbm_rmse_therm_all$.estimate,xgb_rmse_therm_all$.estimate)
-therm_all_msle_value = c(rf_msle_therm_all,gbm_msle_therm_all,xgb_msle_therm_all)
 therm_all_mpe_value = c(rf_mpe_therm_all$.estimate,gbm_mpe_therm_all$.estimate,xgb_mpe_therm_all$.estimate)
 
 print(therm_all_rmse_value)
-print(therm_all_msle_value)
 print(therm_all_mpe_value)
 
 ```
 
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 ggplot(mapping = aes(x = 1:nrow(therm_all_result))) +
-  geom_line(aes(y = therm_all_result$V1), color = "black") +
-  geom_line(aes(y = therm_all_result$rf_predict_therm_all), color = "blue") +
-  geom_line(aes(y = therm_all_result$gbm_predict_therm_all), color = "green") +
-  geom_line(aes(y = therm_all_result$xgb_predict_therm_all), color = "red") +
-  labs(title = "Line Plot with Multiple Lines",
-       x = "Row number", y = "Y-axis",
+  geom_point(aes(y = therm_all_result$V1), color = "black") +
+  geom_point(aes(y = therm_all_result$rf_predict_therm_all), color = "lightblue") +
+  geom_point(aes(y = therm_all_result$gbm_predict_therm_all), color = "lightgreen") +
+  geom_point(aes(y = therm_all_result$xgb_predict_therm_all), color = "pink") +
+  labs(title = "THERM.ALL Actual vs Model Performance for Test Set",
+       x = "Row number", y = "Therm/Sqft",
        color = "Lines") +
   theme_minimal()
 ```
+
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+#Explore zip codes with bad prediction
+
+```
+
+Modeling Code for THERM_FAM
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+##THERM MODELING_FAM
+# split the dataset into train and test set
+train_index_therm_fam = createDataPartition(therm_fam$THERMS.PER.SQFT, p = 0.7, list = FALSE)
+train_therm_fam = therm_fam[train_index_therm_fam, ]
+test_therm_fam = therm_fam[-train_index_therm_fam, ]
+
+# Randomforest
+rf_therm_fam= randomForest(THERMS.PER.SQFT~ ., data = train_therm_fam, ntree = 1000)
+
+# GBM
+trainControl_gbm_therm_fam = trainControl(method = "cv",  
+                               number = 10)    
+gbm_grid = expand.grid(interaction.depth = 1:8,  
+                          n.trees = 1000,          
+                          shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
+                        n.minobsinnode = c(4,6,8,10))
+gbm_therm_fam_train = train(THERMS.PER.SQFT ~ ., data = train_therm_fam,
+                    method = "gbm",
+                    trControl = trainControl_gbm_therm_fam,
+                    tuneGrid = gbm_grid,
+                    verbose = FALSE,
+                    metric = "RMSE",  
+                    distribution = "gaussian")
+print(gbm_therm_fam_train)
+gbm_therm_fam = gbm(THERMS.PER.SQFT ~ ., data = train_therm_fam, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_therm_fam_train$bestTune$interaction.depth,shrinkage = gbm_therm_fam_train$bestTune$shrinkage,n.minobsinnode = gbm_therm_fam_train$bestTune$n.minobsinnode)
+
+
+# XGboost
+xtherm_fam = xgb.DMatrix(data=as.matrix(train_therm_fam[,-3]),label=train_therm_fam[,3])
+xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
+                           subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
+                           eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
+                           stringsAsFactors = FALSE)
+
+# Initialize variables to store the best parameters and lowest RMSE
+best_params_therm_fam = list()
+min_rmse_therm_fam = Inf
+ 
+# Loop through the grid
+for(i in 1:nrow(xgb_grid)) {
+   params = list(
+     booster = "gbtree",
+     max_depth = xgb_grid$max_depth[i],
+     subsample = xgb_grid$subsample[i],
+     eta = xgb_grid$eta[i]
+   )
+   
+# Perform cross-validation
+   cv = xgb.cv(
+     params = params,
+     data = xtherm_fam,
+     nrounds = 10000,
+     nfold = 5,  
+     watchlist = list(train = xtherm_fam),
+     early_stopping_rounds = 10,
+     metrics = "rmse",
+     maximize = FALSE  
+   )
+   
+# Check if this model has the lowest RMSE so far
+   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_therm_fam) {
+     min_rmse_therm_fam = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+     best_params_therm_fam = params
+   }
+ }
+ 
+#print the best params
+print(best_params_therm_fam)
+
+xgb_therm_fam = xgb.train(booster = "gbtree", max_depth = best_params_therm_fam$max_depth, subsample = best_params_therm_fam$subsample, eta = best_params_therm_fam$eta, data = xtherm_fam,
+                       nrounds = 10000, watchlist = list(train = xtherm_fam),
+                       early_stopping_rounds = 10,verbose = 0)
+
+# compare performance of three tree models
+ytherm_fam = xgb.DMatrix(data=as.matrix(test_therm_fam[,-3]),label=test_therm_fam[,3])
+rf_predict_therm_fam = predict(rf_therm_fam,newdata=test_therm_fam[,-3])
+gbm_predict_therm_fam = predict(gbm_therm_fam,newdata=test_therm_fam[,-3])
+xgb_predict_therm_fam = predict(xgb_therm_fam,newdata=ytherm_fam)
+therm_fam_result = as.data.frame(cbind(test_therm_fam$THERMS.PER.SQFT,rf_predict_therm_fam,gbm_predict_therm_fam,xgb_predict_therm_fam))
+
+rf_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,rf_predict_therm_fam)
+gbm_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,gbm_predict_therm_fam)
+xgb_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,xgb_predict_therm_fam)
+
+rf_mpe_therm_fam = mpe(therm_fam_result,V1,rf_predict_therm_fam)
+gbm_mpe_therm_fam = mpe(therm_fam_result,V1,gbm_predict_therm_fam)
+xgb_mpe_therm_fam = mpe(therm_fam_result,V1,xgb_predict_therm_fam)
+
+therm_fam_rmse_value = c(rf_rmse_therm_fam$.estimate,gbm_rmse_therm_fam$.estimate,xgb_rmse_therm_fam$.estimate)
+therm_fam_mpe_value = c(rf_mpe_therm_fam$.estimate,gbm_mpe_therm_fam$.estimate,xgb_mpe_therm_fam$.estimate)
+
+print(therm_fam_rmse_value)
+print(therm_fam_mpe_value)
+
+```
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+ggplot(mapping = aes(x = 1:nrow(therm_fam_result))) +
+  geom_point(aes(y = therm_fam_result$V1), color = "black") +
+  geom_point(aes(y = therm_fam_result$rf_predict_therm_fam), color = "lightblue") +
+  geom_point(aes(y = therm_fam_result$gbm_predict_therm_fam), color = "lightgreen") +
+  geom_point(aes(y = therm_fam_result$xgb_predict_therm_fam), color = "pink") +
+  labs(title = "THERM.FAM Actual vs Model Performance for Test Set",
+       x = "Row number", y = "Therm/Sqft",
+       color = "Lines") +
+  theme_minimal()
+```
+
+
+
+Modeling Code for KWH_ALL
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+##KWH MODELING_ALL
+# split the dataset into train and test set
+train_index_kwh_all = createDataPartition(kwh_all$KWH.PER.SQFT, p = 0.7, list = FALSE)
+train_kwh_all = kwh_all[train_index_kwh_all, ]
+test_kwh_all = kwh_all[-train_index_kwh_all, ]
+
+# Randomforest
+rf_kwh_all= randomForest(KWH.PER.SQFT~ ., data = train_kwh_all, ntree = 1000)
+
+# GBM
+trainControl_gbm_kwh_all = trainControl(method = "cv",  
+                               number = 10)    
+gbm_grid = expand.grid(interaction.depth = 1:8,  
+                          n.trees = 1000,          
+                          shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
+                        n.minobsinnode = c(4,6,8,10))
+gbm_kwh_all_train = train(KWH.PER.SQFT ~ ., data = train_kwh_all,
+                    method = "gbm",
+                    trControl = trainControl_gbm_kwh_all,
+                    tuneGrid = gbm_grid,
+                    verbose = FALSE,
+                    metric = "RMSE",  
+                    distribution = "gaussian")
+print(gbm_kwh_all_train)
+gbm_kwh_all = gbm(KWH.PER.SQFT ~ ., data = train_kwh_all, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_kwh_all_train$bestTune$interaction.depth,shrinkage = gbm_kwh_all_train$bestTune$shrinkage,n.minobsinnode = gbm_kwh_all_train$bestTune$n.minobsinnode)
+
+
+# XGboost
+xkwh_all = xgb.DMatrix(data=as.matrix(train_kwh_all[,-3]),label=train_kwh_all[,3])
+xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
+                           subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
+                           eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
+                           stringsAsFactors = FALSE)
+
+# Initialize variables to store the best parameters and lowest RMSE
+best_params_kwh_all = list()
+min_rmse_kwh_all = Inf
+ 
+# Loop through the grid
+for(i in 1:nrow(xgb_grid)) {
+   params = list(
+     booster = "gbtree",
+     max_depth = xgb_grid$max_depth[i],
+     subsample = xgb_grid$subsample[i],
+     eta = xgb_grid$eta[i]
+   )
+   
+# Perform cross-validation
+   cv = xgb.cv(
+     params = params,
+     data = xkwh_all,
+     nrounds = 10000,
+     nfold = 5,  
+     watchlist = list(train = xkwh_all),
+     early_stopping_rounds = 10,
+     metrics = "rmse",
+     maximize = FALSE  
+   )
+   
+# Check if this model has the lowest RMSE so far
+   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_kwh_all) {
+     min_rmse_kwh_all = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+     best_params_kwh_all = params
+   }
+ }
+ 
+#print the best params
+print(best_params_kwh_all)
+
+xgb_kwh_all = xgb.train(booster = "gbtree", max_depth = best_params_kwh_all$max_depth, subsample = best_params_kwh_all$subsample, eta = best_params_kwh_all$eta, data = xkwh_all,
+                       nrounds = 10000, watchlist = list(train = xkwh_all),
+                       early_stopping_rounds = 10,verbose = 0)
+
+# compare performance of three tree models
+ykwh_all = xgb.DMatrix(data=as.matrix(test_kwh_all[,-3]),label=test_kwh_all[,3])
+rf_predict_kwh_all = predict(rf_kwh_all,newdata=test_kwh_all[,-3])
+gbm_predict_kwh_all = predict(gbm_kwh_all,newdata=test_kwh_all[,-3])
+xgb_predict_kwh_all = predict(xgb_kwh_all,newdata=ykwh_all)
+kwh_all_result = as.data.frame(cbind(test_kwh_all$KWH.PER.SQFT,rf_predict_kwh_all,gbm_predict_kwh_all,xgb_predict_kwh_all))
+
+rf_rmse_kwh_all = yardstick::rmse(kwh_all_result,V1,rf_predict_kwh_all)
+gbm_rmse_kwh_all = yardstick::rmse(kwh_all_result,V1,gbm_predict_kwh_all)
+xgb_rmse_kwh_all = yardstick::rmse(kwh_all_result,V1,xgb_predict_kwh_all)
+
+rf_mpe_kwh_all = mpe(kwh_all_result,V1,rf_predict_kwh_all)
+gbm_mpe_kwh_all = mpe(kwh_all_result,V1,gbm_predict_kwh_all)
+xgb_mpe_kwh_all = mpe(kwh_all_result,V1,xgb_predict_kwh_all)
+
+kwh_all_rmse_value = c(rf_rmse_kwh_all$.estimate,gbm_rmse_kwh_all$.estimate,xgb_rmse_kwh_all$.estimate)
+kwh_all_mpe_value = c(rf_mpe_kwh_all$.estimate,gbm_mpe_kwh_all$.estimate,xgb_mpe_kwh_all$.estimate)
+
+print(kwh_all_rmse_value)
+print(kwh_all_mpe_value)
+
+```
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+ggplot(mapping = aes(x = 1:nrow(kwh_all_result))) +
+  geom_point(aes(y = kwh_all_result$V1), color = "black") +
+  geom_point(aes(y = kwh_all_result$rf_predict_kwh_all), color = "lightblue") +
+  geom_point(aes(y = kwh_all_result$gbm_predict_kwh_all), color = "lightgreen") +
+  geom_point(aes(y = kwh_all_result$xgb_predict_kwh_all), color = "pink") +
+  labs(title = "KWH.ALL Actual vs Model Performance for Test Set",
+       x = "Row number", y = "KWH/Sqft",
+       color = "Lines") +
+  theme_minimal()
+```
+
+
+
+Modeling code for KWH_FAM
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+##KWH MODELING_FAM
+# split the dataset into train and test set
+train_index_kwh_fam = createDataPartition(kwh_fam$KWH.PER.SQFT, p = 0.7, list = FALSE)
+train_kwh_fam = kwh_fam[train_index_kwh_fam, ]
+test_kwh_fam = kwh_fam[-train_index_kwh_fam, ]
+
+# Randomforest
+rf_kwh_fam= randomForest(KWH.PER.SQFT~ ., data = train_kwh_fam, ntree = 1000)
+
+# GBM
+trainControl_gbm_kwh_fam = trainControl(method = "cv",  
+                               number = 10)    
+gbm_grid = expand.grid(interaction.depth = 1:8,  
+                          n.trees = 1000,          
+                          shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
+                        n.minobsinnode = c(4,6,8,10))
+gbm_kwh_fam_train = train(KWH.PER.SQFT ~ ., data = train_kwh_fam,
+                    method = "gbm",
+                    trControl = trainControl_gbm_kwh_fam,
+                    tuneGrid = gbm_grid,
+                    verbose = FALSE,
+                    metric = "RMSE",  
+                    distribution = "gaussian")
+print(gbm_kwh_fam_train)
+gbm_kwh_fam = gbm(KWH.PER.SQFT ~ ., data = train_kwh_fam, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_kwh_fam_train$bestTune$interaction.depth,shrinkage = gbm_kwh_fam_train$bestTune$shrinkage,n.minobsinnode = gbm_kwh_fam_train$bestTune$n.minobsinnode)
+
+
+# XGboost
+xkwh_fam = xgb.DMatrix(data=as.matrix(train_kwh_fam[,-3]),label=train_kwh_fam[,3])
+xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
+                           subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
+                           eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
+                           stringsAsFactors = FALSE)
+
+# Initialize variables to store the best parameters and lowest RMSE
+best_params_kwh_fam = list()
+min_rmse_kwh_fam = Inf
+ 
+# Loop through the grid
+for(i in 1:nrow(xgb_grid)) {
+   params = list(
+     booster = "gbtree",
+     max_depth = xgb_grid$max_depth[i],
+     subsample = xgb_grid$subsample[i],
+     eta = xgb_grid$eta[i]
+   )
+   
+# Perform cross-validation
+   cv = xgb.cv(
+     params = params,
+     data = xkwh_fam,
+     nrounds = 10000,
+     nfold = 5,  
+     watchlist = list(train = xkwh_fam),
+     early_stopping_rounds = 10,
+     metrics = "rmse",
+     maximize = FALSE  
+   )
+   
+# Check if this model has the lowest RMSE so far
+   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_kwh_fam) {
+     min_rmse_kwh_fam = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+     best_params_kwh_fam = params
+   }
+ }
+ 
+#print the best params
+print(best_params_kwh_fam)
+
+xgb_kwh_fam = xgb.train(booster = "gbtree", max_depth = best_params_kwh_fam$max_depth, subsample = best_params_kwh_fam$subsample, eta = best_params_kwh_fam$eta, data = xkwh_fam,
+                       nrounds = 10000, watchlist = list(train = xkwh_fam),
+                       early_stopping_rounds = 10,verbose = 0)
+
+# compare performance of three tree models
+ykwh_fam = xgb.DMatrix(data=as.matrix(test_kwh_fam[,-3]),label=test_kwh_fam[,3])
+rf_predict_kwh_fam = predict(rf_kwh_fam,newdata=test_kwh_fam[,-3])
+gbm_predict_kwh_fam = predict(gbm_kwh_fam,newdata=test_kwh_fam[,-3])
+xgb_predict_kwh_fam = predict(xgb_kwh_fam,newdata=ykwh_fam)
+kwh_fam_result = as.data.frame(cbind(test_kwh_fam$KWH.PER.SQFT,rf_predict_kwh_fam,gbm_predict_kwh_fam,xgb_predict_kwh_fam))
+
+rf_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,rf_predict_kwh_fam)
+gbm_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,gbm_predict_kwh_fam)
+xgb_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,xgb_predict_kwh_fam)
+
+rf_mpe_kwh_fam = mpe(kwh_fam_result,V1,rf_predict_kwh_fam)
+gbm_mpe_kwh_fam = mpe(kwh_fam_result,V1,gbm_predict_kwh_fam)
+xgb_mpe_kwh_fam = mpe(kwh_fam_result,V1,xgb_predict_kwh_fam)
+
+kwh_fam_rmse_value = c(rf_rmse_kwh_fam$.estimate,gbm_rmse_kwh_fam$.estimate,xgb_rmse_kwh_fam$.estimate)
+kwh_fam_mpe_value = c(rf_mpe_kwh_fam$.estimate,gbm_mpe_kwh_fam$.estimate,xgb_mpe_kwh_fam$.estimate)
+
+print(kwh_fam_rmse_value)
+print(kwh_fam_mpe_value)
+
+```
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+ggplot(mapping = aes(x = 1:nrow(kwh_fam_result))) +
+  geom_point(aes(y = kwh_fam_result$V1), color = "black") +
+  geom_point(aes(y = kwh_fam_result$rf_predict_kwh_fam), color = "lightblue") +
+  geom_point(aes(y = kwh_fam_result$gbm_predict_kwh_fam), color = "lightgreen") +
+  geom_point(aes(y = kwh_fam_result$xgb_predict_kwh_fam), color = "pink") +
+  labs(title = "KWH.FAM Actual vs Model Performance for Test Set",
+       x = "Row number", y = "KWH/Sqft",
+       color = "Lines") +
+  theme_minimal()
+```
+
+
+
