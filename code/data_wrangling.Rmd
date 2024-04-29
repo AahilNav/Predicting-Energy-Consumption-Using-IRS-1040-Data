@@ -134,8 +134,8 @@ chicago_all = chicago_all %>% select(zip, YEAR, BUILDING_SUBTYPE, Latitude, Long
 
 #Add ..owned KHW, THERMS variable
 
-#Remove zero and NA
-chicago_all = chicago_all %>% filter(!is.na(OCCUPIED.HOUSING.UNITS), OCCUPIED.HOUSING.UNITS > 0)
+#Remove zero and NA, and Harbor zipcode
+chicago_all = chicago_all %>% filter(!is.na(OCCUPIED.HOUSING.UNITS), OCCUPIED.HOUSING.UNITS > 0) %>% filter(zip != 60611)
 
 
 ################################################################################################################

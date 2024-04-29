@@ -22,7 +22,7 @@ library(pdp)
 library(dplyr)
 ```
 
-```{r, message=FALSE, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, out.width="65%", fig.asp = 1.3, fig.align='center'}
 # read the dataset
 chicago_all = read.csv("../working_data/chicago_all.csv")
 
@@ -34,30 +34,27 @@ chicago_all_filt = cbind(chicago_only, chicago_irs_filt)
 
 #separate data by building subtype
 chi_all = chicago_all_filt %>% filter(BUILDING_SUBTYPE=="All")
-chi_singlefam= chicago_all_filt %>% filter(BUILDING_SUBTYPE=="Single Family")
+chi_only = chicago_only[,1:23] %>% filter(BUILDING_SUBTYPE=="All")
 
 # choose the selected columns
 cleaned_all = chi_all[,-c(1,2,3,8,9,10,11,12,13,14,15,16,17,19,24,25)]
-cleaned_fam = chi_singlefam[,-c(1,2,3,8,9,10,11,12,13,14,15,16,17,19,24,25)]
+cleaned_only = chi_only[,-c(1,2,3,8,9,10,11,12,13,14,15,16,17,19)]
 
 #separate two target variables: THERMS.PER.SQFT and KWH.PER.SQFT
 therm_all = cleaned_all[,-4]
 kwh_all = cleaned_all[,-3]
-therm_fam = cleaned_fam[,-4]
-kwh_fam = cleaned_fam[,-3]
-
-
-##KWH
-train_index_kwh_all = createDataPartition(kwh_all$KWH.PER.SQFT, p = 0.8, list = FALSE)
-train_kwh_all = kwh_all[train_index_kwh_all, ]
-test_kwh_all = kwh_all[-train_index_kwh_all, ]
+therm_only = cleaned_only[,-4]
+kwh_only = cleaned_only[,-3]
 ```
+
+
 
 
 Modeling Code for THERM_ALL
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 ##THERM MODELING_ALL
 # split the dataset into train and test set
+set.seed(17)
 train_index_therm_all = createDataPartition(therm_all$THERMS.PER.SQFT, p = 0.7, list = FALSE)
 train_therm_all = therm_all[train_index_therm_all, ]
 test_therm_all = therm_all[-train_index_therm_all, ]
@@ -166,128 +163,11 @@ ggplot(mapping = aes(x = 1:nrow(therm_all_result))) +
 ```
 
 
-```{r, message=FALSE, echo=FALSE, warning=FALSE}
-#Explore zip codes with bad prediction
-
-```
-
-Modeling Code for THERM_FAM
-```{r, message=FALSE, echo=FALSE, warning=FALSE}
-##THERM MODELING_FAM
-# split the dataset into train and test set
-train_index_therm_fam = createDataPartition(therm_fam$THERMS.PER.SQFT, p = 0.7, list = FALSE)
-train_therm_fam = therm_fam[train_index_therm_fam, ]
-test_therm_fam = therm_fam[-train_index_therm_fam, ]
-
-# Randomforest
-rf_therm_fam= randomForest(THERMS.PER.SQFT~ ., data = train_therm_fam, ntree = 1000)
-
-# GBM
-trainControl_gbm_therm_fam = trainControl(method = "cv",  
-                               number = 10)    
-gbm_grid = expand.grid(interaction.depth = 1:8,  
-                          n.trees = 1000,          
-                          shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
-                        n.minobsinnode = c(4,6,8,10))
-gbm_therm_fam_train = train(THERMS.PER.SQFT ~ ., data = train_therm_fam,
-                    method = "gbm",
-                    trControl = trainControl_gbm_therm_fam,
-                    tuneGrid = gbm_grid,
-                    verbose = FALSE,
-                    metric = "RMSE",  
-                    distribution = "gaussian")
-print(gbm_therm_fam_train)
-gbm_therm_fam = gbm(THERMS.PER.SQFT ~ ., data = train_therm_fam, distribution = "gaussian", 
-                n.trees=1000,interaction.depth = gbm_therm_fam_train$bestTune$interaction.depth,shrinkage = gbm_therm_fam_train$bestTune$shrinkage,n.minobsinnode = gbm_therm_fam_train$bestTune$n.minobsinnode)
-
-
-# XGboost
-xtherm_fam = xgb.DMatrix(data=as.matrix(train_therm_fam[,-3]),label=train_therm_fam[,3])
-xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
-                           subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
-                           eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
-                           stringsAsFactors = FALSE)
-
-# Initialize variables to store the best parameters and lowest RMSE
-best_params_therm_fam = list()
-min_rmse_therm_fam = Inf
- 
-# Loop through the grid
-for(i in 1:nrow(xgb_grid)) {
-   params = list(
-     booster = "gbtree",
-     max_depth = xgb_grid$max_depth[i],
-     subsample = xgb_grid$subsample[i],
-     eta = xgb_grid$eta[i]
-   )
-   
-# Perform cross-validation
-   cv = xgb.cv(
-     params = params,
-     data = xtherm_fam,
-     nrounds = 10000,
-     nfold = 5,  
-     watchlist = list(train = xtherm_fam),
-     early_stopping_rounds = 10,
-     metrics = "rmse",
-     maximize = FALSE  
-   )
-   
-# Check if this model has the lowest RMSE so far
-   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_therm_fam) {
-     min_rmse_therm_fam = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
-     best_params_therm_fam = params
-   }
- }
- 
-#print the best params
-print(best_params_therm_fam)
-
-xgb_therm_fam = xgb.train(booster = "gbtree", max_depth = best_params_therm_fam$max_depth, subsample = best_params_therm_fam$subsample, eta = best_params_therm_fam$eta, data = xtherm_fam,
-                       nrounds = 10000, watchlist = list(train = xtherm_fam),
-                       early_stopping_rounds = 10,verbose = 0)
-
-# compare performance of three tree models
-ytherm_fam = xgb.DMatrix(data=as.matrix(test_therm_fam[,-3]),label=test_therm_fam[,3])
-rf_predict_therm_fam = predict(rf_therm_fam,newdata=test_therm_fam[,-3])
-gbm_predict_therm_fam = predict(gbm_therm_fam,newdata=test_therm_fam[,-3])
-xgb_predict_therm_fam = predict(xgb_therm_fam,newdata=ytherm_fam)
-therm_fam_result = as.data.frame(cbind(test_therm_fam$THERMS.PER.SQFT,rf_predict_therm_fam,gbm_predict_therm_fam,xgb_predict_therm_fam))
-
-rf_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,rf_predict_therm_fam)
-gbm_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,gbm_predict_therm_fam)
-xgb_rmse_therm_fam = yardstick::rmse(therm_fam_result,V1,xgb_predict_therm_fam)
-
-rf_mpe_therm_fam = mpe(therm_fam_result,V1,rf_predict_therm_fam)
-gbm_mpe_therm_fam = mpe(therm_fam_result,V1,gbm_predict_therm_fam)
-xgb_mpe_therm_fam = mpe(therm_fam_result,V1,xgb_predict_therm_fam)
-
-therm_fam_rmse_value = c(rf_rmse_therm_fam$.estimate,gbm_rmse_therm_fam$.estimate,xgb_rmse_therm_fam$.estimate)
-therm_fam_mpe_value = c(rf_mpe_therm_fam$.estimate,gbm_mpe_therm_fam$.estimate,xgb_mpe_therm_fam$.estimate)
-
-print(therm_fam_rmse_value)
-print(therm_fam_mpe_value)
-
-```
-
-```{r, message=FALSE, echo=FALSE, warning=FALSE}
-ggplot(mapping = aes(x = 1:nrow(therm_fam_result))) +
-  geom_point(aes(y = therm_fam_result$V1), color = "black") +
-  geom_point(aes(y = therm_fam_result$rf_predict_therm_fam), color = "lightblue") +
-  geom_point(aes(y = therm_fam_result$gbm_predict_therm_fam), color = "lightgreen") +
-  geom_point(aes(y = therm_fam_result$xgb_predict_therm_fam), color = "pink") +
-  labs(title = "THERM.FAM Actual vs Model Performance for Test Set",
-       x = "Row number", y = "Therm/Sqft",
-       color = "Lines") +
-  theme_minimal()
-```
-
-
-
 Modeling Code for KWH_ALL
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 ##KWH MODELING_ALL
 # split the dataset into train and test set
+set.seed(17)
 train_index_kwh_all = createDataPartition(kwh_all$KWH.PER.SQFT, p = 0.7, list = FALSE)
 train_kwh_all = kwh_all[train_index_kwh_all, ]
 test_kwh_all = kwh_all[-train_index_kwh_all, ]
@@ -397,46 +277,51 @@ ggplot(mapping = aes(x = 1:nrow(kwh_all_result))) +
 
 
 
-Modeling code for KWH_FAM
+
+
+##OnlyChicagoData Modeling
+
+Modeling Code for THERM_ONLY_CHICAGO_DATA
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
-##KWH MODELING_FAM
+##THERM MODELING_ONLY_CHICAGO_DATA
 # split the dataset into train and test set
-train_index_kwh_fam = createDataPartition(kwh_fam$KWH.PER.SQFT, p = 0.7, list = FALSE)
-train_kwh_fam = kwh_fam[train_index_kwh_fam, ]
-test_kwh_fam = kwh_fam[-train_index_kwh_fam, ]
+set.seed(17)
+train_index_therm_only = createDataPartition(therm_only$THERMS.PER.SQFT, p = 0.7, list = FALSE)
+train_therm_only = therm_only[train_index_therm_only, ]
+test_therm_only = therm_only[-train_index_therm_only, ]
 
 # Randomforest
-rf_kwh_fam= randomForest(KWH.PER.SQFT~ ., data = train_kwh_fam, ntree = 1000)
+rf_therm_only= randomForest(THERMS.PER.SQFT~ ., data = train_therm_only, ntree = 1000)
 
 # GBM
-trainControl_gbm_kwh_fam = trainControl(method = "cv",  
+trainControl_gbm_therm_only = trainControl(method = "cv",  
                                number = 10)    
 gbm_grid = expand.grid(interaction.depth = 1:8,  
                           n.trees = 1000,          
                           shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
                         n.minobsinnode = c(4,6,8,10))
-gbm_kwh_fam_train = train(KWH.PER.SQFT ~ ., data = train_kwh_fam,
+gbm_therm_only_train = train(THERMS.PER.SQFT ~ ., data = train_therm_only,
                     method = "gbm",
-                    trControl = trainControl_gbm_kwh_fam,
+                    trControl = trainControl_gbm_therm_only,
                     tuneGrid = gbm_grid,
                     verbose = FALSE,
                     metric = "RMSE",  
                     distribution = "gaussian")
-print(gbm_kwh_fam_train)
-gbm_kwh_fam = gbm(KWH.PER.SQFT ~ ., data = train_kwh_fam, distribution = "gaussian", 
-                n.trees=1000,interaction.depth = gbm_kwh_fam_train$bestTune$interaction.depth,shrinkage = gbm_kwh_fam_train$bestTune$shrinkage,n.minobsinnode = gbm_kwh_fam_train$bestTune$n.minobsinnode)
+print(gbm_therm_only_train)
+gbm_therm_only = gbm(THERMS.PER.SQFT ~ ., data = train_therm_only, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_therm_only_train$bestTune$interaction.depth,shrinkage = gbm_therm_only_train$bestTune$shrinkage,n.minobsinnode = gbm_therm_only_train$bestTune$n.minobsinnode)
 
 
 # XGboost
-xkwh_fam = xgb.DMatrix(data=as.matrix(train_kwh_fam[,-3]),label=train_kwh_fam[,3])
+xtherm_only = xgb.DMatrix(data=as.matrix(train_therm_only[,-3]),label=train_therm_only[,3])
 xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
                            subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
                            eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
                            stringsAsFactors = FALSE)
 
 # Initialize variables to store the best parameters and lowest RMSE
-best_params_kwh_fam = list()
-min_rmse_kwh_fam = Inf
+best_params_therm_only = list()
+min_rmse_therm_only = Inf
  
 # Loop through the grid
 for(i in 1:nrow(xgb_grid)) {
@@ -450,59 +335,174 @@ for(i in 1:nrow(xgb_grid)) {
 # Perform cross-validation
    cv = xgb.cv(
      params = params,
-     data = xkwh_fam,
+     data = xtherm_only,
      nrounds = 10000,
      nfold = 5,  
-     watchlist = list(train = xkwh_fam),
+     watchlist = list(train = xtherm_only),
      early_stopping_rounds = 10,
      metrics = "rmse",
      maximize = FALSE  
    )
    
 # Check if this model has the lowest RMSE so far
-   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_kwh_fam) {
-     min_rmse_kwh_fam = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
-     best_params_kwh_fam = params
+   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_therm_only) {
+     min_rmse_therm_only = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+     best_params_therm_only = params
    }
  }
  
 #print the best params
-print(best_params_kwh_fam)
+print(best_params_therm_only)
 
-xgb_kwh_fam = xgb.train(booster = "gbtree", max_depth = best_params_kwh_fam$max_depth, subsample = best_params_kwh_fam$subsample, eta = best_params_kwh_fam$eta, data = xkwh_fam,
-                       nrounds = 10000, watchlist = list(train = xkwh_fam),
+xgb_therm_only = xgb.train(booster = "gbtree", max_depth = best_params_therm_only$max_depth, subsample = best_params_therm_only$subsample, eta = best_params_therm_only$eta, data = xtherm_only,
+                       nrounds = 10000, watchlist = list(train = xtherm_only),
                        early_stopping_rounds = 10,verbose = 0)
 
 # compare performance of three tree models
-ykwh_fam = xgb.DMatrix(data=as.matrix(test_kwh_fam[,-3]),label=test_kwh_fam[,3])
-rf_predict_kwh_fam = predict(rf_kwh_fam,newdata=test_kwh_fam[,-3])
-gbm_predict_kwh_fam = predict(gbm_kwh_fam,newdata=test_kwh_fam[,-3])
-xgb_predict_kwh_fam = predict(xgb_kwh_fam,newdata=ykwh_fam)
-kwh_fam_result = as.data.frame(cbind(test_kwh_fam$KWH.PER.SQFT,rf_predict_kwh_fam,gbm_predict_kwh_fam,xgb_predict_kwh_fam))
+ytherm_only = xgb.DMatrix(data=as.matrix(test_therm_only[,-3]),label=test_therm_only[,3])
+rf_predict_therm_only = predict(rf_therm_only,newdata=test_therm_only[,-3])
+gbm_predict_therm_only = predict(gbm_therm_only,newdata=test_therm_only[,-3])
+xgb_predict_therm_only = predict(xgb_therm_only,newdata=ytherm_only)
+therm_only_result = as.data.frame(cbind(test_therm_only$THERMS.PER.SQFT,rf_predict_therm_only,gbm_predict_therm_only,xgb_predict_therm_only))
 
-rf_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,rf_predict_kwh_fam)
-gbm_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,gbm_predict_kwh_fam)
-xgb_rmse_kwh_fam = yardstick::rmse(kwh_fam_result,V1,xgb_predict_kwh_fam)
+rf_rmse_therm_only = yardstick::rmse(therm_only_result,V1,rf_predict_therm_only)
+gbm_rmse_therm_only = yardstick::rmse(therm_only_result,V1,gbm_predict_therm_only)
+xgb_rmse_therm_only = yardstick::rmse(therm_only_result,V1,xgb_predict_therm_only)
 
-rf_mpe_kwh_fam = mpe(kwh_fam_result,V1,rf_predict_kwh_fam)
-gbm_mpe_kwh_fam = mpe(kwh_fam_result,V1,gbm_predict_kwh_fam)
-xgb_mpe_kwh_fam = mpe(kwh_fam_result,V1,xgb_predict_kwh_fam)
+rf_mpe_therm_only = mpe(therm_only_result,V1,rf_predict_therm_only)
+gbm_mpe_therm_only = mpe(therm_only_result,V1,gbm_predict_therm_only)
+xgb_mpe_therm_only = mpe(therm_only_result,V1,xgb_predict_therm_only)
 
-kwh_fam_rmse_value = c(rf_rmse_kwh_fam$.estimate,gbm_rmse_kwh_fam$.estimate,xgb_rmse_kwh_fam$.estimate)
-kwh_fam_mpe_value = c(rf_mpe_kwh_fam$.estimate,gbm_mpe_kwh_fam$.estimate,xgb_mpe_kwh_fam$.estimate)
+therm_only_rmse_value = c(rf_rmse_therm_only$.estimate,gbm_rmse_therm_only$.estimate,xgb_rmse_therm_only$.estimate)
+therm_only_mpe_value = c(rf_mpe_therm_only$.estimate,gbm_mpe_therm_only$.estimate,xgb_mpe_therm_only$.estimate)
 
-print(kwh_fam_rmse_value)
-print(kwh_fam_mpe_value)
+print(therm_only_rmse_value)
+print(therm_only_mpe_value)
 
 ```
 
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
-ggplot(mapping = aes(x = 1:nrow(kwh_fam_result))) +
-  geom_point(aes(y = kwh_fam_result$V1), color = "black") +
-  geom_point(aes(y = kwh_fam_result$rf_predict_kwh_fam), color = "lightblue") +
-  geom_point(aes(y = kwh_fam_result$gbm_predict_kwh_fam), color = "lightgreen") +
-  geom_point(aes(y = kwh_fam_result$xgb_predict_kwh_fam), color = "pink") +
-  labs(title = "KWH.FAM Actual vs Model Performance for Test Set",
+ggplot(mapping = aes(x = 1:nrow(therm_only_result))) +
+  geom_point(aes(y = therm_only_result$V1), color = "black") +
+  geom_point(aes(y = therm_only_result$rf_predict_therm_only), color = "lightblue") +
+  geom_point(aes(y = therm_only_result$gbm_predict_therm_only), color = "lightgreen") +
+  geom_point(aes(y = therm_only_result$xgb_predict_therm_only), color = "pink") +
+  labs(title = "THERM.ONLY_CHICAGO_DATA Actual vs Model Performance for Test Set",
+       x = "Row number", y = "Therm/Sqft",
+       color = "Lines") +
+  theme_minimal()
+```
+
+
+
+
+Modeling code for KWH_CHICAGO_ONLY
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+##KWH MODELING_ONLY
+# split the dataset into train and test set
+set.seed(17)
+train_index_kwh_only = createDataPartition(kwh_only$KWH.PER.SQFT, p = 0.7, list = FALSE)
+train_kwh_only = kwh_only[train_index_kwh_only, ]
+test_kwh_only = kwh_only[-train_index_kwh_only, ]
+
+# Randomforest
+rf_kwh_only= randomForest(KWH.PER.SQFT~ ., data = train_kwh_only, ntree = 1000)
+
+# GBM
+trainControl_gbm_kwh_only = trainControl(method = "cv",  
+                               number = 10)    
+gbm_grid = expand.grid(interaction.depth = 1:8,  
+                          n.trees = 1000,          
+                          shrinkage = c(0.001, 0.005, 0.01, 0.05, 0.1),
+                        n.minobsinnode = c(4,6,8,10))
+gbm_kwh_only_train = train(KWH.PER.SQFT ~ ., data = train_kwh_only,
+                    method = "gbm",
+                    trControl = trainControl_gbm_kwh_only,
+                    tuneGrid = gbm_grid,
+                    verbose = FALSE,
+                    metric = "RMSE",  
+                    distribution = "gaussian")
+print(gbm_kwh_only_train)
+gbm_kwh_only = gbm(KWH.PER.SQFT ~ ., data = train_kwh_only, distribution = "gaussian", 
+                n.trees=1000,interaction.depth = gbm_kwh_only_train$bestTune$interaction.depth,shrinkage = gbm_kwh_only_train$bestTune$shrinkage,n.minobsinnode = gbm_kwh_only_train$bestTune$n.minobsinnode)
+
+
+# XGboost
+xkwh_only = xgb.DMatrix(data=as.matrix(train_kwh_only[,-3]),label=train_kwh_only[,3])
+xgb_grid = expand.grid(max_depth = c(4, 6, 8, 10),  # Example depths
+                           subsample = c(0.5, 0.7, 0.9),  # Example subsample rates
+                           eta = c(0.005, 0.01, 0.05, 0.1),  # Example learning rates
+                           stringsAsFactors = FALSE)
+
+# Initialize variables to store the best parameters and lowest RMSE
+best_params_kwh_only = list()
+min_rmse_kwh_only = Inf
+ 
+# Loop through the grid
+for(i in 1:nrow(xgb_grid)) {
+   params = list(
+     booster = "gbtree",
+     max_depth = xgb_grid$max_depth[i],
+     subsample = xgb_grid$subsample[i],
+     eta = xgb_grid$eta[i]
+   )
+   
+# Perform cross-validation
+   cv = xgb.cv(
+     params = params,
+     data = xkwh_only,
+     nrounds = 10000,
+     nfold = 5,  
+     watchlist = list(train = xkwh_only),
+     early_stopping_rounds = 10,
+     metrics = "rmse",
+     maximize = FALSE  
+   )
+   
+# Check if this model has the lowest RMSE so far
+   if(cv$evaluation_log$test_rmse_mean[cv$best_iteration] < min_rmse_kwh_only) {
+     min_rmse_kwh_only = cv$evaluation_log$test_rmse_mean[cv$best_iteration]
+     best_params_kwh_only = params
+   }
+ }
+ 
+#print the best params
+print(best_params_kwh_only)
+
+xgb_kwh_only = xgb.train(booster = "gbtree", max_depth = best_params_kwh_only$max_depth, subsample = best_params_kwh_only$subsample, eta = best_params_kwh_only$eta, data = xkwh_only,
+                       nrounds = 10000, watchlist = list(train = xkwh_only),
+                       early_stopping_rounds = 10,verbose = 0)
+
+# compare performance of three tree models
+ykwh_only = xgb.DMatrix(data=as.matrix(test_kwh_only[,-3]),label=test_kwh_only[,3])
+rf_predict_kwh_only = predict(rf_kwh_only,newdata=test_kwh_only[,-3])
+gbm_predict_kwh_only = predict(gbm_kwh_only,newdata=test_kwh_only[,-3])
+xgb_predict_kwh_only = predict(xgb_kwh_only,newdata=ykwh_only)
+kwh_only_result = as.data.frame(cbind(test_kwh_only$KWH.PER.SQFT,rf_predict_kwh_only,gbm_predict_kwh_only,xgb_predict_kwh_only))
+
+rf_rmse_kwh_only = yardstick::rmse(kwh_only_result,V1,rf_predict_kwh_only)
+gbm_rmse_kwh_only = yardstick::rmse(kwh_only_result,V1,gbm_predict_kwh_only)
+xgb_rmse_kwh_only = yardstick::rmse(kwh_only_result,V1,xgb_predict_kwh_only)
+
+rf_mpe_kwh_only = mpe(kwh_only_result,V1,rf_predict_kwh_only)
+gbm_mpe_kwh_only = mpe(kwh_only_result,V1,gbm_predict_kwh_only)
+xgb_mpe_kwh_only = mpe(kwh_only_result,V1,xgb_predict_kwh_only)
+
+kwh_only_rmse_value = c(rf_rmse_kwh_only$.estimate,gbm_rmse_kwh_only$.estimate,xgb_rmse_kwh_only$.estimate)
+kwh_only_mpe_value = c(rf_mpe_kwh_only$.estimate,gbm_mpe_kwh_only$.estimate,xgb_mpe_kwh_only$.estimate)
+
+print(kwh_only_rmse_value)
+print(kwh_only_mpe_value)
+
+```
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+ggplot(mapping = aes(x = 1:nrow(kwh_only_result))) +
+  geom_point(aes(y = kwh_only_result$V1), color = "black") +
+  geom_point(aes(y = kwh_only_result$rf_predict_kwh_only), color = "lightblue") +
+  geom_point(aes(y = kwh_only_result$gbm_predict_kwh_only), color = "lightgreen") +
+  geom_point(aes(y = kwh_only_result$xgb_predict_kwh_only), color = "pink") +
+  labs(title = "KWH.ONLY_CHICAGO_DATA Actual vs Model Performance for Test Set",
        x = "Row number", y = "KWH/Sqft",
        color = "Lines") +
   theme_minimal()

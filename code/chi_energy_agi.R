@@ -60,6 +60,75 @@ map = leaflet(avg_values) %>%
             ) %>%
   setView(lng = -87.6298, lat = 41.8781, zoom = 10)
 
+
+
+
+
+# Scale the radius of the circles based on THERMS
+avg_values$Radius = sqrt(avg_values$THERMS.PER.SQFT)*6
+
+# Create the map with Therms data and add the Chicago city boundaries
+map = leaflet(avg_values) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    ~Jittered_Longitude, ~Jittered_Latitude,
+    radius = ~Radius,
+    color = ~tax_credit_pal(A07260_av),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    popup = ~paste("Therms/TotalSQFT: T/ft^2", comma(A00100_av), "<br>",
+                   "Average Residential Energy Tax Credit: $", comma(A07260_av))
+  ) %>%
+  addGeoJSON(geojson = chicago_boundaries, 
+             weight = 1, 
+             color = "#444444", 
+             fillColor = NA, 
+             fillOpacity = 0
+  ) %>%
+  addLegend("topright", pal = tax_credit_pal, values = ~A07260_av,
+            title = "Average Residential Energy Tax Credit",
+            opacity = 1,
+  ) %>%
+  setView(lng = -87.6298, lat = 41.8781, zoom = 10)
+
+
+
 # Print the map
 map
+
+
+##CircleSize _> KWH
+# Scale the radius of the circles based on KWH
+avg_values$Radius = sqrt(avg_values$KWH.PER.SQFT)*3
+
+
+# Create the map with Therms data and add the Chicago city boundaries
+map = leaflet(avg_values) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    ~Jittered_Longitude, ~Jittered_Latitude,
+    radius = ~Radius,
+    color = ~tax_credit_pal(A07260_av),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    popup = ~paste("KWH/TotalSQFT: KWH/ft^2", comma(A00100_av), "<br>",
+                   "Average Residential Energy Tax Credit: $", comma(A07260_av))
+  ) %>%
+  addGeoJSON(geojson = chicago_boundaries, 
+             weight = 1, 
+             color = "#444444", 
+             fillColor = NA, 
+             fillOpacity = 0
+  ) %>%
+  addLegend("topright", pal = tax_credit_pal, values = ~A07260_av,
+            title = "Average Residential Energy Tax Credit",
+            opacity = 1,
+  ) %>%
+  setView(lng = -87.6298, lat = 41.8781, zoom = 10)
+
+
+
+# Print the map
+map
+
 
