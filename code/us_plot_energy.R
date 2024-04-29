@@ -25,7 +25,7 @@ radius_scale <- sqrt(avg_tax_credit$Avg_Tax_Credit) / 20  # Adjust this scaling 
 pal <- colorNumeric(palette = "viridis", domain = avg_tax_credit$Avg_Tax_Credit)
 
 # Load the US states GeoJSON data
-us_states_boundaries <- readLines("gz_2010_us_040_00_500k.json")
+us_states_boundaries <- readLines("../working_data/gz_2010_us_040_00_500k.json")
 us_states_boundaries <- paste(us_states_boundaries, collapse = "\n")
 
 # Create the map with Residential Energy Tax Credit data
