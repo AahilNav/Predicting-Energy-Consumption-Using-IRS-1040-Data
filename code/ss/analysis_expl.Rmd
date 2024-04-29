@@ -1,0 +1,42 @@
+---
+title: "Project Analysis Exploratory"
+author: "Aahil Navroz, Joseph Williams, Qi Suqian"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+### Data Wrangling: aggregating, combining Chicago energy with IRS
+
+Aahil Navroz, Joseph Williams, Qi Suqian
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+###Joe Code
+
+##import data
+chi_all = read_csv("../working_data/chi_all.csv")
+chi_filt = chi_all %>% filter(OCCUPIED.HOUSING.UNITS > 0 & !is.na(OCCUPIED.HOUSING.UNITS))
+
+# Select only the variables and descriptions
+codebook <- varnames %>% select(Variable, Description)
+
+# Iterate over the column names of chi_all
+for (var in colnames(chi_all)) {
+  # Check if the variable is not in the codebook
+  if (!(var %in% codebook$Variable)) {
+    # If the variable is not in the codebook, add it with an empty description
+    codebook <- bind_rows(codebook, tibble(Variable = var, Description = ""))
+  }
+}
+
+#Actually could we create the codebook with the variables in chi_all
+
+#Clustering
+
+
+
+
+
+
+#Baseline model
+
+```
