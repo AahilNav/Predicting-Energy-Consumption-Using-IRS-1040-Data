@@ -1,49 +1,106 @@
 ---
 title: "Can We Predict Residential Energy Usage with IRS Data?"
-subtitle: "A Study On 2010 Electric and Gas Usage Across Chicago Zip Codes"
 author: "Aahil Navroz, Joseph Williams, Qi Suqian"
 date: "April 2024"
-output: 
+output:
   pdf_document:
+subtitle: A Study On 2010 Electric and Gas Usage Across Chicago Zip Codes
 ---
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(knitr)
+library(leaflet)
+library(leaflegend)
+library(scales)
+```
 
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+chicago_all = read.csv("./working_data/chicago_all.csv")
+```
 
-## Abstract
+# Abstract
 
-## Introduction
+# Introduction
 
-## Methods
+# Methods
 Our dataset is 
 
-## Results
+# Results
 
-## Conclusion
+# Conclusion
 
-## Appendix
 
-Plot 1.1
-```{r, echo=FALSE, message=FALSE, out.width="65%", fig.asp = 1.3, fig.align='center'}
+
+
+# Appendix
+
+
+
+
+
+
+## Figures
+
+
+
+```{r, echo=FALSE, out.width='80%'}
+knitr::include_graphics("./figures/Vis01.png")
+```
+
+Fig1 [Above]: *Average residential energy tax credits claimed where plotted circle radius corresponds to average adjusted gross income (AGI)*
+
+```{r, echo=FALSE, out.width='80%'}
+knitr::include_graphics("./figures/Vis02.png")
+```
+
+Fig2 [Above]: *Average residential energy tax credits claimed where plotted circle radius corresponds to Therms/SQFT*
+
+```{r, echo=FALSE, out.width='80%'}
+knitr::include_graphics("./figures/Vis03.png")
+```
+
+Fig3 [Above]: *Average residential energy tax credits claimed where plotted circle radius corresponds to KWH/SQFT*
+
+```{r, echo=FALSE, message=FALSE, eval=FALSE, out.width="65%", fig.asp = 1.3, fig.align='center'}
 #GGPLOT of energy by zip code
-# read the dataset
-chicago_all = read.csv("./working_data/chicago_all.csv")
 
 #Visualize data
 # Scatterplot for both KWH.PER.SQFT and THERMS.PER.SQFT
 # Convert zip code to a factor variable
-chicago_all <- chicago_all %>% 
+vis00 = chicago_all %>% 
   mutate(zip = stringr::str_to_title(zip))
 
-ggplot(chicago_all, aes(x = zip, y = KWH.PER.SQFT, color = "KWH.PER.SQFT")) +
+ggplot(vis00, aes(x = zip, y = KWH.PER.SQFT, color = "KWH.PER.SQFT")) +
   geom_point(size = 1.5) +
   geom_point(aes(y = THERMS.PER.SQFT, color = "THERMS.PER.SQFT"), size = 1.5) + 
   scale_y_log10() + 
   labs(y = "Log10(Energy)", x = "ZipCode", color = "Energy Type") + 
   scale_color_manual(values = c("KWH.PER.SQFT" = "yellow", "THERMS.PER.SQFT" = "orange")) +
-  theme_minimal() + ggtitle("Energy Usage by Zip Codes") +
+  ggtitle("Energy Usage by Zip Codes") +
   coord_flip() +
+  theme_minimal() +
   theme(
     axis.text = element_text(size = 10),  # Decrease the font size of axis labels
-    legend.position = "bottom",  # Position the legend on the right side
-    legend.text = element_text(size = 10)  # Decrease the font size of legend text
-  ) 
+    legend.position = "bottom",  # Position the legend on the bottom
+    legend.text = element_text(size = 10),  # Decrease the font size of legend text
+    plot.title = element_text(hjust = 0.5)  # Center the plot title
+  )  
 ```
+
+
+## Reference Tables
+
+*IRS Codebook*
+```{r, message=FALSE, echo=FALSE, warning=FALSE, out.width="65%"}
+#IRSdatavarnames
+IRSvarnames = read_excel("./artifacts/Codebook.xlsx","SelectedVars") %>% select(Variable, Description) %>% filter(Variable %in% colnames(chicago_all))
+IRSvarnames %>%
+  knitr::kable()
+```
+
+
+
+
+

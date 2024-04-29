@@ -19,10 +19,10 @@ library(readxl)
 
 options(scipen = 16)
 
-#unzip below folder first
+#Below we have Chicago data from 'https://data.cityofchicago.org/Environment-Sustainable-Development/Energy-Usage-2010/8yq3-m6wp/about_data' with zip codes and Lat Long added with python script, mapped from USPS data, census tract mappers
 chicago = read.csv("../working_data/prework/final_updated_energy_usage_with_coordinates.csv")
 
-# varnames
+#IRSdatavarnames
 varnames = read_excel("../artifacts/Codebook.xlsx","SelectedVars") %>% select(Variable, Description, Shared)
 
 ##################################################################################################################
@@ -63,6 +63,7 @@ chicago_ziplist = unique(chicago_zips$zip)
 chicago_badzips = chicago %>% filter(zip %in% c(60018, 60601, 60602, 60654, 60803))
 #Looks like these zip codes only really have commercial data
 
+#Here we have IRSdata from 2009, sourced from "https://www.irs.gov/statistics/soi-tax-stats-individual-income-tax-statistics-zip-code-data-soi"
 #filter to only contain observations with Chicago zipcodes
 irs09 = read.csv("../working_data/prework/09zpallagi_stdz.csv")
 irs09c <- irs09 %>% 
