@@ -31,7 +31,7 @@ avg_values$Radius = sqrt(avg_values$Avg_AGI) / 100
 tax_credit_pal = colorNumeric(palette = "viridis", domain = avg_values$Avg_Tax_Credit)
 
 # Load GeoJSON data for Chicago city boundaries directly
-chicago_boundaries = readLines("Boundaries - Neighborhoods.geojson")
+chicago_boundaries = readLines("../working_data/Boundaries - Neighborhoods.geojson")
 chicago_boundaries = paste(chicago_boundaries, collapse = "\n")
 
 # Create the map with AGI data and add the Chicago city boundaries
