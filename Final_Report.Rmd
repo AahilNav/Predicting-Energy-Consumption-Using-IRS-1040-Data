@@ -29,7 +29,7 @@ Residential energy usage prediction is a complex and highly studied challenge.  
  * *Effectively* model residential energy usage using IRS data.
  * Analyze effectiveness of IRS data within our model, and to determine what overall taxpayer qualities **In particular Residential Energy Credits** correspond with real energy usage and reduction.
 
-***Backround***
+***Background***
 
 Every April 15, millions of Americans submit their US Individual Income Tax Return Form 1040 [Reference Docs > Fig A] to the Internal Revenue Service (IRS). This is an important administrative and even cultural event within the country, and is also a significant source of demographic and personal finance information. A significant portion of taxpayers further include Form 5695, 'Residential Energy Credits' [Reference Docs > Fig B]. These tax credits were added to the Internal Revenue Code in 2005 by the Energy Policy Act of 2005 with the goal of rewarding taxpayers for their efforts towards energy efficiency. Therefore a secondary goal of our project is to *contextualize the role of household energy credits* in residential energy prediction using IRS data and by doing so create some framework for further study on the real effect of energy tax credits on abatement.
 
@@ -37,6 +37,38 @@ Every April 15, millions of Americans submit their US Individual Income Tax Retu
 Our dataset is 
 
 # Results
+```{r, echo=FALSE, out.width='80%'}
+therm_result = read.csv("./figures/therm_result.csv")
+kwh_result = read.csv("./figures/kwh_result.csv")
+colnames(therm_result) = c("Model","therm_all_rmse","therm_only_rmse","therm_all_mpe","therm_only_mpe")
+colnames(kwh_result) = c("Model","kwh_all_rmse","kwh_only_rmse","kwh_all_mpe","kwh_only_mpe")
+kable(therm_result)
+```
+First we look at the metrics for Therms. We fitted four models: baseline linear model, random forest model, gradient boosting tree model and XGBoost tree model, to only the Chicago energy consumption data (therm_only) and including the IRS data(therm_all). We first compare between these two data sets to see, whether the IRS data have significant predictable power on the real therm consumption. We can see except the baseline model, the rmse of therm_all are pretty close to the therm_only. Except the XGBoost model, they even have lager rmse value which we think may due to overfitness. For the mpe metric, both GBDT and XGBoost perform better in the therm_all data set. But considering the much larger amount of features, we are not sure whether the IRS patterns truly make effect.
+
+```{r, echo=FALSE, out.width='80%'}
+kable(kwh_result)
+```
+Then we look at the KWH result. Similarly, except the baseline model, the rmse of kwh_all data set are close to the kwh_only and the mpe of GBDT and XGBoost model are weakly better for kwh_all. Considering the larger amount of fitted variables, we are not sure whether the IRS patterns truly make effect. 
+
+Overall the XGBoost model gives us the best prediction for both therm data and kwh data. Now, we are going to explore how the predicted values from XGBoost connected to the true data.
+//residual plot analysis 
+
+
+Now we explore which part of IRS data has the most predictable power on the Chicago energy consumption. We list the top 15 most important features from XGBoost and GBDT model for therm and kwh in the refrence table B and table C.
+We first focus on the features which both appear in 2 models. For therms, AVERAGE.HOUSESIZE, AVERAGE.STORIES, Latitude, Longitude - the Chicago features, and A11902_av and N01000_av - the IRS features all appear twice. For kwh, AVERAGE.STORIES, RATIO.OWNED, AVERAGE.BUILDING.AGE, AVERAGE.HOUSESZIE, Latitude, Longitude - the Chichago features, and A07100_av, N00900_av, N01700_av and A01700_av - the IRS features all appear twice. 
+We are interested in who are these IRS variables and explore intuitively for why thet matters. Here are the details:
+A11902: Overpayments refunded amount;
+N01000: Number of returns with net capital gain (less loss);
+A07100: Total tax credits amount;
+N00900: Number of returns with business or professional net income;
+N01700: Number of returns with taxable pensions and annuities;
+A01700: Taxable pensions and annuities amount;
+
+We are also happy to see that N077260 appears in both GBDT model and A07260 appears in GDBT model for therm. It successfully prove our assumption that the energy tax credit is a good candidate for the real energy consumption.
+N07260: Number of returns with residential energy tax credit;
+A07260: Residential energy tax credit amount;
+
 
 # Conclusion
 
@@ -109,6 +141,18 @@ IRSvarnames %>%
   knitr::kable()
 ```
 
+[Table B] *Therm Feature Importance Rank*
+```{r, message=FALSE, echo=FALSE, warning=FALSE, out.width="65%"}
+# Importance Rank 
+therm_importance_result = read.csv("./figures/therm_importance_result.csv")
+kwh_importance_result = read.csv("./figures/kwh_importance_result.csv")
+kable(therm_importance_result)
+```
+
+[Table C] *KWH Feature Importance Rank*
+```{r, message=FALSE, echo=FALSE, warning=FALSE, out.width="65%"}
+kable(kwh_importance_result)
+```
 
 ## Reference Docs
 
