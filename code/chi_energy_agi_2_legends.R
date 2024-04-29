@@ -49,7 +49,7 @@ tax_credit_pal = colorNumeric(palette = "viridis", domain = avg_values$A07260_av
 therms_pal = colorNumeric(palette = "plasma", domain = avg_values$THERMS_PER_SQFT)
 
 # Define color palette for KWH using 'YlGnBu'
-kwh_pal = colorNumeric(palette = "RdYlBu", domain = avg_values$KWH_PER_SQFT)
+kwh_pal <- colorNumeric(palette = rev(RColorBrewer::brewer.pal(11, "RdYlBu")), domain = avg_values$KWH_PER_SQFT)
 
 # Define color palette for AGI using 'magma' from the viridis package
 agi_pal = colorNumeric(palette = "magma", domain = avg_values$A00100_av)
@@ -318,8 +318,71 @@ print(vis06)
 
 ## Plotting residuals
 
+therm_resid = read.csv("../figures/Dtherm_all_result.csv")
+kwh_resid = read.csv("../figures/Dkwh_all_result.csv")
+
+# Define color palettes
+therm_color_pal <- colorNumeric(palette = c("yellow", "orange", "red"), domain = range(therm_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
+kwh_color_pal <- colorNumeric(palette = c("skyblue", "blue", "purple"), domain = range(kwh_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
 
 
+## Visualization for Therm Residuals with Title
+visResidualsTherm <- leaflet(therm_resid) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    ~Longitude, ~Latitude,
+    color = ~therm_color_pal(Rediduals.for.therm),
+    fillColor = ~therm_color_pal(Rediduals.for.therm),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    radius = 5
+  ) %>%
+  addGeoJSON(
+    geojson = chicago_boundaries,
+    weight = 1,
+    color = "#444444",
+    fillColor = NA,
+    fillOpacity = 0
+  ) %>%
+  addLegend(
+    position = "bottomright",
+    pal = therm_color_pal,
+    values = ~Rediduals.for.therm,
+    title = "Therm Residuals",
+    opacity = 1
+  ) %>%
+  addControl("<h4 style='margin: 10px; padding: 10px; text-align: center;'>XGBoost Residuals for Therm</h4>", position = "topright") %>%
+  setView(lng = -87.6298, lat = 41.8781, zoom = 10)
 
+## Visualization for KWH Residuals with Title
+visResidualsKWH <- leaflet(kwh_resid) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircleMarkers(
+    ~Longitude, ~Latitude,
+    color = ~kwh_color_pal(Rediduals.for.therm),
+    fillColor = ~kwh_color_pal(Rediduals.for.therm),
+    fillOpacity = 0.8,
+    stroke = FALSE,
+    radius = 5
+  ) %>%
+  addGeoJSON(
+    geojson = chicago_boundaries,
+    weight = 1,
+    color = "#444444",
+    fillColor = NA,
+    fillOpacity = 0
+  ) %>%
+  addLegend(
+    position = "bottomright",
+    pal = kwh_color_pal,
+    values = ~Rediduals.for.therm,
+    title = "KWH Residuals",
+    opacity = 1
+  ) %>%
+  addControl("<h4 style='margin: 10px; padding: 10px; text-align: center;'>XGBoost Residuals for KWH</h4>", position = "topright") %>%
+  setView(lng = -87.6298, lat = 41.8781, zoom = 10)
 
+# Display the maps
+print(visResidualsTherm)
+print(visResidualsKWH)
 ########################################################################
