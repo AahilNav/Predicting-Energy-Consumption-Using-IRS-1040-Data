@@ -1,4 +1,4 @@
-"Feature","Gain","var","rel.inf"
+"XGBoost Therm Feature","XGBoost Therm Importance","GBDT Therm Feature","GBDT Therm Importance"
 "AVERAGE.HOUSESIZE",0.218,"AVERAGE.HOUSESIZE",12.327
 "AVERAGE.STORIES",0.117,"N01400_av",7.718
 "OCCUPIED.HOUSING.UNITS",0.056,"Latitude",7.205

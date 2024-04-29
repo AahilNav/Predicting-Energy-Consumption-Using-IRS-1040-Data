@@ -1,4 +1,4 @@
-"Feature","Gain","var","rel.inf"
+"XGBoost KWH Feature","XGBoost KWH Importance","GBDT KWH Feature","GBDT KWH Importance"
 "AVERAGE.STORIES",0.289,"AVERAGE.STORIES",26.032
 "A07100_av",0.144,"RATIO.OWNED",16.856
 "RATIO.OWNED",0.139,"A07100_av",9.614
