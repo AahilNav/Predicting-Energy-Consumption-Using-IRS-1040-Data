@@ -80,13 +80,13 @@ vis01 = leaflet(avg_values) %>%
     position = "bottomright", 
     pal = therms_pal, 
     values = ~THERMS.PER.SQFT,
-    title = "Gas Heating (Therms)",
+    title = "Therms/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius2 * 4,
-    title = "Energy Tax Credit Size by Percentile",
+    title = "Average Energy Credit by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,
@@ -124,13 +124,13 @@ vis02 = leaflet(avg_values) %>%
     position = "bottomright",
     pal = kwh_pal,
     values = ~KWH.PER.SQFT,
-    title = "KWH per SQFT",
+    title = "KWH/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius2*4,
-    title = "Tax Credit Size by Percentiles",
+    title = "Average Energy Credit by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,  # Visual representation size
@@ -165,13 +165,13 @@ vis03 = leaflet(avg_values) %>%
     position = "bottomright",
     pal = therms_pal,
     values = ~THERMS.PER.SQFT,
-    title = "Gas Heating (Therms)",
+    title = "Therms/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius1*4,
-    title = "AGI Circle Size by Percentiles",
+    title = "Average AGI by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,
@@ -208,13 +208,13 @@ vis04 = leaflet(avg_values) %>%
     position = "bottomright",
     pal = kwh_pal,
     values = ~KWH.PER.SQFT,
-    title = "KWH per SQFT",
+    title = "KWH/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius1 * 4,
-    title = "AGI Circle Size by Percentiles",
+    title = "Average AGI by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,
@@ -250,13 +250,13 @@ vis05 = leaflet(avg_values) %>%
     position = "bottomright",
     pal = therms_pal,
     values = ~THERMS.PER.SQFT,
-    title = "Therms per SQFT",
+    title = "Therms/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius3 * 4,
-    title = "House Size by Percentiles",
+    title = "Average House Size by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,
@@ -293,13 +293,13 @@ vis06 = leaflet(avg_values) %>%
     position = "bottomright",
     pal = kwh_pal,
     values = ~KWH.PER.SQFT,
-    title = "KWH per SQFT",
+    title = "KWH/SQFT",
     opacity = 1
   ) %>%
   addLegendSize(
     position = 'topright',
     values = ~Radius3 * 4,
-    title = "House Size by Percentiles",
+    title = "Average House Size by Percentile",
     color = 'black',
     shape = 'circle',
     baseSize = 20,
