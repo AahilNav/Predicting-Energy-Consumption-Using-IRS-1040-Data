@@ -34,7 +34,25 @@ Residential energy usage prediction is a complex and highly studied challenge.  
 Every April 15, millions of Americans submit their US Individual Income Tax Return Form 1040 [Reference Docs > Fig A] to the Internal Revenue Service (IRS). This is an important administrative and even cultural event within the country, and is also a significant source of demographic and personal finance information. A significant portion of taxpayers further include Form 5695, 'Residential Energy Credits' [Reference Docs > Fig B]. These tax credits were added to the Internal Revenue Code in 2005 by the Energy Policy Act of 2005 with the goal of rewarding taxpayers for their efforts towards energy efficiency. Therefore a secondary goal of our project is to *contextualize the role of household energy credits* in residential energy prediction using IRS data and by doing so create some framework for further study on the real effect of energy tax credits on abatement.
 
 # Methods
-Our dataset is 
+
+***Data***
+
+Our master data file is contained within our repo in './working_data/chicago_all.csv'.
+
+```{r, echo=FALSE, out.width='80%'}
+#head(chicago_all)
+```
+
+Our energy usage data which comprises the first 23 variables of chicago_all is from "https://data.cityofchicago.org/Environment-Sustainable-Development/Energy-Usage-2010/8yq3-m6wp/about_data".  That data is here: './working_data/prework/final_updated_energy_usage_with_coordinates.csv', where we have added a `zip` variable along with  `Latitude` and `Longitude` variables using python using the 'uszipcode' library in python. This novel and detailed data set contains energy usage information from primary providers on commercial and residential housing totals by housing subtype = single_family, <7, and 7+ (multifamily). According to the source, the electricity data (KWH) comprises 68 percent of overall electrical usage in the city while gas data comprises 81 percent of all gas consumption (Therms).  
+
+Our IRS 1040 data, beginning with the `STATE` variable, is from "https://www.irs.gov/statistics/soi-tax-stats-individual-income-tax-statistics-zip-code-data-soi".  We downloaded the zip data file from 2009.  That data is here: './working_data/prework/09zpallagi_stdz.csv' with minor cleaning performed in python.  This data set contains line item totals, by zip code and AGI_STUB (class of 1:6 based on Adjusted Gross Income (AGI) levels) as well as line items with zip code return totals and amount totals (in the thousands of dollars, when relevant) for a number of line items from IRS Form 1040 and attached forms. The dataset contains data from both IRS 1040 and 1040 EZ returns, when applicable. For documentation information for TY2009 see './artifacts/documentation/09zpdoc'.
+
+To recreate our master data file, please pull our github repository and run './code/data_wrangling.Rmd'. After aggregating each dataset by zip code, we create our target variables `THERMS.PER.SQFT` and `KWH.PER.SQFT`.  Therms are a measure of natural gas where 1 Therm is equal to 100sqft of natural gas.  It is a rather large unit.  Kilowatts per squarfeet is a standard measure of electricity and is smaller, relatively.  We standardize each of these using the Chicago dataset's `THERMS.TOTAL.SQFT` and `KWH.TOTAL.SQFT`, which is the square footage associated with the electric and gas energy usage, respectively, in 2010 according to Cook County Assessor Records.  We believe this is an accurate measure of how much energy residents of a zip code are using, on average.  We further performing averages on the IRS data by weighing each count and amount variables 
+
+***Approach***
+
+Our training and modeling code is all contained in './code/model_prediction.Rmd'.  First we subset chicago_all into a data frame which only contains variables from within the Chicago energy dataset.  We'll use this as a benchmark to determine whether the IRS variables are adding any predictive power.  Then we divide into training and testing data sets and run a slate of machine learning algorithms (Random Forest, Gradient Boosted Decision Tree (GBDT), and XGBoost) along with a baseline linear model.  We then use GBM summary function and XGBoost 'Gain' metrics to determine which variables are "important".  Here, we expect variables from the Chicago energy data set to be relevant, but are more interested in the novel information we can gain from the IRS data including residential energy credits.
+
 
 # Results
 
