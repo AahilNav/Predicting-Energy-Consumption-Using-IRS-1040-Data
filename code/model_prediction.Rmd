@@ -466,8 +466,8 @@ kwh_result = cbind(model_name,kwh_result)
 
 write.csv(therm_result, "../figures/therm_result.csv", row.names = FALSE)
 write.csv(kwh_result, "../figures/kwh_result.csv", row.names = FALSE)
-```
 
+```
 ```{r, message=FALSE, echo=FALSE, warning=FALSE}
 # output the importance ranking
 imp_therm_all_gbm = summary(gbm_therm_all, plotit = FALSE)
@@ -494,4 +494,21 @@ colnames(kwh_importance_reuslt) = c("XGBoost KWH Feature", "XGBoost KWH Importan
 
 write.csv(therm_importance_result, "../figures/therm_importance_result.csv", row.names = FALSE)
 write.csv(kwh_importance_result, "../figures/kwh_importance_result.csv", row.names = FALSE)
+```
+
+```{r, message=FALSE, echo=FALSE, warning=FALSE}
+Dtherm_all = xgb.DMatrix(data=as.matrix(therm_all[,-3]),label=therm_all[,3])
+Dxgb_predict_therm_all = predict(xgb_therm_all,newdata=Dtherm_all)
+therm_residual = therm_all$THERMS.PER.SQFT - Dxgb_predict_therm_all
+Dtherm_all_result = as.data.frame(cbind(therm_residual,therm_all$Longitude,therm_all$Latitude))
+colnames(Dtherm_all_result) = c("Rediduals for therm","Longitude","Latitude")
+
+Dkwh_all = xgb.DMatrix(data=as.matrix(kwh_all[,-3]),label=kwh_all[,3])
+Dxgb_predict_kwh_all = predict(xgb_kwh_all,newdata=Dkwh_all)
+kwh_residual = kwh_all$KWH.PER.SQFT - Dxgb_predict_kwh_all
+Dkwh_all_result = as.data.frame(cbind(kwh_residual,kwh_all$Longitude,kwh_all$Latitude))
+colnames(Dkwh_all_result) = c("Rediduals for therm","Longitude","Latitude")
+
+write.csv(Dtherm_all_result, "../figures/Dtherm_all_result.csv", row.names = FALSE)
+write.csv(Dkwh_all_result, "../figures/Dkwh_all_result.csv", row.names = FALSE)
 ```
