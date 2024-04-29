@@ -1,0 +1,5 @@
+"model_name","kwh_all_rmse_value","kwh_only_rmse_value","kwh_all_mpe_value","kwh_only_mpe_value"
+"Linear","9.222","2.819","-1.846","4.405"
+"Random Forest","2.985","2.975","4.479","3.153"
+"Gradient Boosting Tree","2.885","3","4.222","4.8"
+"XGBoost","2.964","3.096","1.209","2.991"
