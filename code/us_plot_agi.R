@@ -27,7 +27,7 @@ avg_agi$Radius <- sqrt(avg_agi$Avg_AGI) * radius_scale_factor
 pal <- colorNumeric(palette = "viridis", domain = avg_agi$Avg_AGI)
 
 # Load the US states GeoJSON data
-us_states_boundaries <- readLines("gz_2010_us_040_00_500k.json")
+us_states_boundaries <- readLines("../working_data/gz_2010_us_040_00_500k.json")
 us_states_boundaries <- paste(us_states_boundaries, collapse = "\n")
 
 # Create the map with AGI data
