@@ -49,13 +49,13 @@ tax_credit_pal = colorNumeric(palette = "viridis", domain = avg_values$A07260_av
 therms_pal = colorNumeric(palette = "plasma", domain = avg_values$THERMS_PER_SQFT)
 
 # Define color palette for KWH using 'YlGnBu'
-kwh_pal <- colorNumeric(palette = rev(RColorBrewer::brewer.pal(11, "RdYlBu")), domain = avg_values$KWH_PER_SQFT)
+kwh_pal = colorNumeric(palette = rev(RColorBrewer::brewer.pal(11, "RdYlBu")), domain = avg_values$KWH_PER_SQFT)
 
 # Define color palette for AGI using 'magma' from the viridis package
 agi_pal = colorNumeric(palette = "magma", domain = avg_values$A00100_av)
 
 # Load GeoJSON data for Chicago city boundaries
-chicago_boundaries <- readLines("../working_data/Boundaries - Neighborhoods.geojson") %>% paste(collapse = "\n")
+chicago_boundaries = readLines("../working_data/Boundaries - Neighborhoods.geojson") %>% paste(collapse = "\n")
 
 
 ## Vis01, color = therms, size = tax credit
@@ -322,12 +322,12 @@ therm_resid = read.csv("../figures/Dtherm_all_result.csv")
 kwh_resid = read.csv("../figures/Dkwh_all_result.csv")
 
 # Define color palettes
-therm_color_pal <- colorNumeric(palette = c("yellow", "orange", "red"), domain = range(therm_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
-kwh_color_pal <- colorNumeric(palette = c("skyblue", "blue", "purple"), domain = range(kwh_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
+therm_color_pal = colorNumeric(palette = c("yellow", "orange", "red"), domain = range(therm_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
+kwh_color_pal = colorNumeric(palette = c("skyblue", "blue", "purple"), domain = range(kwh_resid$Rediduals.for.therm, na.rm = TRUE), na.color = "transparent")
 
 
 ## Visualization for Therm Residuals with Title
-visResidualsTherm <- leaflet(therm_resid) %>%
+visResidualsTherm = leaflet(therm_resid) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addCircleMarkers(
     ~Longitude, ~Latitude,
@@ -355,7 +355,7 @@ visResidualsTherm <- leaflet(therm_resid) %>%
   setView(lng = -87.6298, lat = 41.8781, zoom = 10)
 
 ## Visualization for KWH Residuals with Title
-visResidualsKWH <- leaflet(kwh_resid) %>%
+visResidualsKWH = leaflet(kwh_resid) %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addCircleMarkers(
     ~Longitude, ~Latitude,
