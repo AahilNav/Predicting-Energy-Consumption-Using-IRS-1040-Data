@@ -1,4 +1,4 @@
-## Can we predict Chicago zip code thermal and electricity usage using individual income tax data?
+## Can we predict Chicago zip code thermal and electricity usage using IRS data?
 
 Statistical learning project by `Aahil Navroz`, `Joseph Williams`, `Suqian Qi`
 
